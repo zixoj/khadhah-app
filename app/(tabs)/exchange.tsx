@@ -231,10 +231,10 @@ export default function ExchangeScreen() {
             <TouchableOpacity
               style={[styles.offerBtn, {
                 backgroundColor: hasOffered
-                  ? (isDark ? 'rgba(0,255,135,0.1)' : colors.primary)
-                  : (isDark ? 'rgba(59,130,246,0.12)' : colors.exchange),
-                borderColor: hasOffered ? colors.primary : colors.exchange,
-                borderWidth: isDark ? 1 : 0,
+                  ? (isDark ? 'rgba(0,200,83,0.12)' : colors.primary)
+                  : colors.exchange,
+                borderColor: hasOffered ? colors.primary : 'transparent',
+                borderWidth: hasOffered && isDark ? 1 : 0,
               }]}
               onPress={() => !hasOffered && openOfferModal(item)}
               activeOpacity={0.8}
@@ -245,7 +245,7 @@ export default function ExchangeScreen() {
                   <Text style={[styles.offerBtnText, { color: isDark ? colors.primary : '#fff' }]}>تم الإرسال</Text>
                 </View>
               ) : (
-                <Text style={[styles.offerBtnText, { color: isDark ? colors.exchange : '#fff' }]}>اعرض تبديل</Text>
+                <Text style={[styles.offerBtnText, { color: '#fff' }]}>اعرض تبديل</Text>
               )}
             </TouchableOpacity>
           )}
@@ -256,12 +256,12 @@ export default function ExchangeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: isDark ? colors.surface : '#2563EB', borderBottomColor: isDark ? colors.cardBorder : 'transparent', borderBottomWidth: isDark ? 1 : 0 }]}>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: isDark ? colors.cardBorder : '#E8EDF2', borderBottomWidth: 1 }]}>
         <View style={styles.headerContent}>
-          <ArrowLeftRight size={22} color={isDark ? colors.exchange : '#fff'} />
-          <Text style={[styles.headerTitle, { color: isDark ? colors.exchange : '#fff' }]}>بدّل</Text>
+          <ArrowLeftRight size={22} color={colors.exchange} />
+          <Text style={[styles.headerTitle, { color: colors.text }]}>بدّل</Text>
         </View>
-        <Text style={[styles.headerSub, { color: isDark ? colors.textSecondary : 'rgba(255,255,255,0.75)' }]}>اعرض تبديل وتفاوض مباشرة</Text>
+        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>اعرض تبديل وتفاوض مباشرة</Text>
       </View>
 
       <FlatList
@@ -316,11 +316,11 @@ export default function ExchangeScreen() {
 
       {profile && (
         <TouchableOpacity
-          style={[styles.fab, { backgroundColor: isDark ? colors.exchange : '#2563EB', shadowColor: colors.exchange }]}
+          style={[styles.fab, { backgroundColor: colors.exchange, shadowColor: colors.exchange }]}
           onPress={() => router.push('/add-post?type=exchange')}
           activeOpacity={0.8}
         >
-          <Plus size={28} color="#fff" />
+          <Plus size={28} color="#fff" strokeWidth={2.5} />
         </TouchableOpacity>
       )}
 
@@ -356,16 +356,16 @@ export default function ExchangeScreen() {
 
             {offerSuccess ? (
               <View style={styles.successState}>
-                <View style={[styles.successCircle, { backgroundColor: isDark ? 'rgba(0,255,135,0.12)' : colors.primary, borderColor: isDark ? colors.primary : 'transparent', borderWidth: isDark ? 1 : 0 }]}>
+                <View style={[styles.successCircle, { backgroundColor: isDark ? 'rgba(0,200,83,0.14)' : colors.primary, borderColor: isDark ? colors.primary : 'transparent', borderWidth: isDark ? 1 : 0 }]}>
                   <Check size={32} color={isDark ? colors.primary : '#fff'} />
                 </View>
                 <Text style={[styles.successTitle, { color: colors.text }]}>تم إرسال عرضك!</Text>
                 <Text style={[styles.successSub, { color: colors.textSecondary }]}>سيتواصل معك صاحب الإعلان إذا أعجبه العرض</Text>
                 <TouchableOpacity
-                  style={[styles.doneBtn, { backgroundColor: isDark ? 'rgba(0,255,135,0.1)' : colors.primary, borderColor: isDark ? colors.primary : 'transparent', borderWidth: isDark ? 1 : 0 }]}
+                  style={[styles.doneBtn, { backgroundColor: colors.primary }]}
                   onPress={() => setOfferModalVisible(false)}
                 >
-                  <Text style={[styles.doneBtnText, { color: isDark ? colors.primary : '#fff' }]}>حسناً</Text>
+                  <Text style={[styles.doneBtnText, { color: '#000' }]}>حسناً</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -404,8 +404,7 @@ export default function ExchangeScreen() {
                 )}
                 <TouchableOpacity
                   style={[styles.submitOfferBtn, {
-                    backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : colors.exchange,
-                    borderColor: colors.exchange, borderWidth: isDark ? 1 : 0,
+                    backgroundColor: colors.exchange,
                     opacity: submittingOffer ? 0.6 : 1,
                   }]}
                   onPress={submitOffer}
@@ -413,8 +412,8 @@ export default function ExchangeScreen() {
                   activeOpacity={0.8}
                 >
                   {submittingOffer
-                    ? <ActivityIndicator color={isDark ? colors.exchange : '#fff'} />
-                    : <Text style={[styles.submitOfferText, { color: isDark ? colors.exchange : '#fff' }]}>إرسال العرض</Text>
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={[styles.submitOfferText, { color: '#fff' }]}>إرسال العرض</Text>
                   }
                 </TouchableOpacity>
               </ScrollView>

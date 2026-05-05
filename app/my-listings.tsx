@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
-  Alert,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
@@ -17,12 +17,12 @@ import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import {
   ChevronLeft,
   Trash2,
-  Zap,
   Eye,
   ArrowLeftRight,
   Gift,
   Plus,
   LayoutList,
+  AlertTriangle,
 } from 'lucide-react-native';
 
 interface Listing {
@@ -33,7 +33,6 @@ interface Listing {
   city: string;
   image_url: string;
   views_count: number;
-  is_boosted: boolean;
   status: string;
   created_at: string;
 }
@@ -45,106 +44,70 @@ export default function MyListingsScreen() {
   const C = colors;
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [boostCount, setBoostCount] = useState(0);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
 
   useEffect(() => {
     fetchListings();
-    fetchBoostCount();
   }, []);
 
   const fetchListings = async () => {
     const { data } = await supabase
       .from('listings')
-      .select('*')
+      .select('id, title, type, category, city, image_url, views_count, status, created_at')
       .eq('user_id', profile!.id)
       .order('created_at', { ascending: false });
     if (data) setListings(data);
     setLoading(false);
   };
 
-  const fetchBoostCount = async () => {
-    const { data } = await supabase.from('profiles').select('boost_count').eq('id', profile!.id).maybeSingle();
-    if (data) setBoostCount(data.boost_count || 0);
+  const confirmDelete = (id: string) => {
+    setConfirmId(id);
+    setDeleteError(null);
+    setDeleteSuccess(false);
   };
 
-  const handleDelete = (id: string) => {
-    Alert.alert('حذف الإعلان', 'هل أنت متأكد من حذف هذا الإعلان؟', [
-      { text: 'إلغاء', style: 'cancel' },
-      {
-        text: 'حذف', style: 'destructive',
-        onPress: async () => {
-          await supabase.from('listings').delete().eq('id', id);
-          await supabase.from('activity_log').insert({
-            user_id: profile!.id,
-            action: 'listing_deleted',
-            description: 'تم حذف إعلان',
-          });
-          setListings((prev) => prev.filter((l) => l.id !== id));
-        },
-      },
-    ]);
-  };
+  const handleDelete = async () => {
+    if (!confirmId) return;
+    setDeletingId(confirmId);
+    setDeleteError(null);
 
-  const handleBoost = async (listing: Listing) => {
-    if (listing.is_boosted) {
-      Alert.alert('مميز', 'هذا الإعلان مميز بالفعل');
+    const { error } = await supabase
+      .from('listings')
+      .delete()
+      .eq('id', confirmId)
+      .eq('user_id', profile!.id);
+
+    if (error) {
+      setDeleteError('فشل حذف الإعلان. حاول مرة أخرى.');
+      setDeletingId(null);
       return;
     }
-    if (boostCount <= 0) {
-      Alert.alert('لا يوجد رصيد', 'ليس لديك بوست مجاني متاح. يمكنك شراء بوست من المحفظة.');
-      return;
-    }
-    Alert.alert('تمييز الإعلان', 'هل تريد استخدام بوست مجاني لتمييز هذا الإعلان؟', [
-      { text: 'إلغاء', style: 'cancel' },
-      {
-        text: 'تمييز',
-        onPress: async () => {
-          const boostedUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-          const [listingRes, profileRes] = await Promise.all([
-            supabase.from('listings').update({ is_boosted: true, boosted_until: boostedUntil }).eq('id', listing.id).eq('user_id', profile!.id),
-            supabase.from('profiles').update({ boost_count: boostCount - 1 }).eq('id', profile!.id),
-          ]);
-          if (listingRes.error || profileRes.error) {
-            Alert.alert('خطأ', 'فشل تمييز الإعلان');
-            return;
-          }
-          await supabase.from('activity_log').insert({
-            user_id: profile!.id,
-            action: 'listing_boosted',
-            description: `تم تمييز إعلان: ${listing.title}`,
-          });
-          setBoostCount((prev) => prev - 1);
-          setListings((prev) => prev.map((l) => l.id === listing.id ? { ...l, is_boosted: true } : l));
-          Alert.alert('تم', 'تم تمييز إعلانك لمدة 7 أيام');
-        },
-      },
-    ]);
+
+    await supabase.from('activity_log').insert({
+      user_id: profile!.id,
+      action: 'listing_deleted',
+      description: 'تم حذف إعلان',
+    });
+
+    setListings((prev) => prev.filter((l) => l.id !== confirmId));
+    setDeletingId(null);
+    setConfirmId(null);
+    setDeleteSuccess(true);
+    setTimeout(() => setDeleteSuccess(false), 3000);
   };
 
   const renderItem = ({ item }: { item: Listing }) => {
     const isExchange = item.type === 'exchange';
     return (
-      <View style={[
-        styles.card,
-        {
-          backgroundColor: C.card,
-          borderColor: item.is_boosted
-            ? C.warning
-            : (isDark ? C.cardBorder : '#E8EDF2'),
-          borderWidth: item.is_boosted ? 2 : 1,
-        },
-      ]}>
-        {item.is_boosted && (
-          <View style={[styles.boostBadge, { backgroundColor: C.warning }]}>
-            <Zap size={11} color="#fff" fill="#fff" />
-            <Text style={styles.boostBadgeText}>مميز</Text>
-          </View>
-        )}
+      <View style={[styles.card, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E0E0E0' }]}>
         <TouchableOpacity onPress={() => router.push(`/post-detail?id=${item.id}`)} activeOpacity={0.8}>
           {item.image_url ? (
             <Image source={{ uri: item.image_url }} style={styles.cardImage} />
           ) : (
-            <View style={[styles.cardImagePlaceholder, { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}>
+            <View style={[styles.cardImagePlaceholder, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#F4F7FA' }]}>
               {isExchange
                 ? <ArrowLeftRight size={24} color={C.exchange} />
                 : <Gift size={24} color={C.free} />
@@ -171,18 +134,12 @@ export default function MyListingsScreen() {
           </View>
           <View style={styles.cardActions}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: isDark ? C.surface : '#F4F7FA', borderColor: isDark ? C.border : '#E8EDF2' }]}
-              onPress={() => handleBoost(item)}
+              style={[styles.deleteBtn, { backgroundColor: isDark ? 'rgba(255,59,48,0.10)' : '#FFF5F5', borderColor: isDark ? 'rgba(255,59,48,0.25)' : '#FECACA' }]}
+              onPress={() => confirmDelete(item.id)}
               activeOpacity={0.7}
             >
-              <Zap size={16} color={item.is_boosted ? C.warning : C.textMuted} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: isDark ? C.errorBg : '#FFF5F5', borderColor: isDark ? C.error : '#FECACA' }]}
-              onPress={() => handleDelete(item.id)}
-              activeOpacity={0.7}
-            >
-              <Trash2 size={16} color={C.error} />
+              <Trash2 size={15} color={C.error} />
+              <Text style={[styles.deleteBtnText, { color: C.error }]}>حذف</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -203,10 +160,9 @@ export default function MyListingsScreen() {
         <View style={{ width: 38 }} />
       </View>
 
-      {boostCount > 0 && (
-        <View style={[styles.boostInfo, { backgroundColor: isDark ? C.warningBg : '#FFFBEB', borderBottomColor: isDark ? 'rgba(255,179,0,0.2)' : '#FDE68A' }]}>
-          <Zap size={16} color={C.warning} />
-          <Text style={[styles.boostInfoText, { color: C.warning }]}>لديك {boostCount} بوست مجاني متاح</Text>
+      {deleteSuccess && (
+        <View style={[styles.successBanner, { backgroundColor: isDark ? 'rgba(0,200,83,0.12)' : '#F0FDF4', borderColor: isDark ? 'rgba(0,200,83,0.25)' : '#86EFAC' }]}>
+          <Text style={[styles.successBannerText, { color: C.primary }]}>تم حذف الإعلان بنجاح</Text>
         </View>
       )}
 
@@ -222,15 +178,14 @@ export default function MyListingsScreen() {
           <Text style={[styles.emptyTitle, { color: C.text }]}>لا توجد إعلانات بعد</Text>
           <TouchableOpacity
             style={[styles.addBtn, {
-              backgroundColor: isDark ? 'transparent' : C.primary,
-              borderColor: C.primary,
-              borderWidth: isDark ? 1.5 : 0,
+              backgroundColor: C.primary,
+              shadowColor: C.primary,
             }]}
             onPress={() => router.push('/add-post')}
             activeOpacity={0.8}
           >
-            <Plus size={18} color={isDark ? C.primary : '#fff'} />
-            <Text style={[styles.addBtnText, { color: isDark ? C.primary : '#fff' }]}>أضف إعلانك الأول</Text>
+            <Plus size={18} color="#000" />
+            <Text style={styles.addBtnText}>أضف إعلانك الأول</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -246,17 +201,56 @@ export default function MyListingsScreen() {
       )}
 
       <TouchableOpacity
-        style={[styles.fab, {
-          backgroundColor: isDark ? 'transparent' : C.primary,
-          borderColor: isDark ? C.primary : 'transparent',
-          borderWidth: isDark ? 1.5 : 0,
-          shadowColor: C.primary,
-        }]}
+        style={[styles.fab, { backgroundColor: C.primary, shadowColor: C.primary }]}
         onPress={() => router.push('/add-post')}
         activeOpacity={0.8}
       >
-        <Plus size={26} color={isDark ? C.primary : '#fff'} />
+        <Plus size={26} color="#000" strokeWidth={2.5} />
       </TouchableOpacity>
+
+      {/* Arabic confirmation modal */}
+      <Modal
+        visible={!!confirmId}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmId(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.confirmSheet, { backgroundColor: isDark ? '#1A1A1A' : '#fff' }]}>
+            <View style={[styles.confirmIconWrap, { backgroundColor: isDark ? 'rgba(255,59,48,0.12)' : '#FFF5F5' }]}>
+              <AlertTriangle size={28} color={C.error} />
+            </View>
+            <Text style={[styles.confirmTitle, { color: C.text }]}>حذف الإعلان</Text>
+            <Text style={[styles.confirmBody, { color: C.textSecondary }]}>
+              هل أنت متأكد من حذف هذا الإعلان؟ لا يمكن التراجع عن هذا الإجراء.
+            </Text>
+            {deleteError && (
+              <Text style={[styles.confirmError, { color: C.error }]}>{deleteError}</Text>
+            )}
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={[styles.confirmCancelBtn, { backgroundColor: isDark ? C.card : '#F4F7FA', borderColor: isDark ? C.border : '#E0E0E0' }]}
+                onPress={() => { setConfirmId(null); setDeleteError(null); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.confirmCancelText, { color: C.textSecondary }]}>إلغاء</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmDeleteBtn, { backgroundColor: isDark ? 'rgba(255,59,48,0.12)' : C.error, borderColor: C.error }]}
+                onPress={handleDelete}
+                disabled={!!deletingId}
+                activeOpacity={0.8}
+              >
+                {deletingId ? (
+                  <ActivityIndicator size="small" color={isDark ? C.error : '#fff'} />
+                ) : (
+                  <Text style={[styles.confirmDeleteText, { color: isDark ? C.error : '#fff' }]}>حذف</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -270,39 +264,27 @@ const styles = StyleSheet.create({
   },
   navTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
   navIconBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
-  boostInfo: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    borderBottomWidth: 1,
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
-    justifyContent: 'flex-end',
+  successBanner: {
+    borderWidth: 1, borderRadius: BorderRadius.md, margin: Spacing.md,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
   },
-  boostInfoText: { fontSize: FontSizes.sm, fontWeight: '600' },
+  successBannerText: { fontSize: FontSizes.sm, fontWeight: '600', textAlign: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md },
   emptyIconWrap: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.sm },
   emptyTitle: { fontSize: FontSizes.md, fontWeight: '600' },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    borderRadius: 14, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 6,
   },
-  addBtnText: { fontSize: FontSizes.md, fontWeight: '700' },
+  addBtnText: { fontSize: FontSizes.md, fontWeight: '700', color: '#000' },
   listContent: { padding: Spacing.md, paddingBottom: 100 },
   row: { gap: Spacing.md, marginBottom: Spacing.md },
   card: {
-    flex: 1, borderRadius: BorderRadius.lg, overflow: 'hidden',
+    flex: 1, borderRadius: 16, overflow: 'hidden', borderWidth: 1,
   },
-  boostBadge: {
-    position: 'absolute', top: 6, right: 6, zIndex: 1,
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: 6, paddingVertical: 3,
-  },
-  boostBadgeText: { fontSize: FontSizes.xs, color: '#fff', fontWeight: '700' },
   cardImage: { width: '100%', height: 100, resizeMode: 'cover' },
-  cardImagePlaceholder: {
-    width: '100%', height: 100,
-    justifyContent: 'center', alignItems: 'center',
-  },
+  cardImagePlaceholder: { width: '100%', height: 100, justifyContent: 'center', alignItems: 'center' },
   cardBody: { padding: Spacing.sm, gap: Spacing.xs },
   cardTitle: { fontSize: FontSizes.sm, fontWeight: '600', textAlign: 'right', lineHeight: 18 },
   cardMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -310,16 +292,41 @@ const styles = StyleSheet.create({
   typePillText: { fontSize: FontSizes.xs, fontWeight: '700' },
   viewsRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   viewsText: { fontSize: FontSizes.xs },
-  cardActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, paddingTop: 2 },
-  actionBtn: {
-    width: 32, height: 32, borderRadius: 8,
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1,
+  cardActions: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 2 },
+  deleteBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5,
   },
+  deleteBtnText: { fontSize: FontSizes.xs, fontWeight: '700' },
   fab: {
     position: 'absolute', bottom: Spacing.xl, left: Spacing.lg,
     width: 54, height: 54, borderRadius: 27,
     justifyContent: 'center', alignItems: 'center',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
+    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.45, shadowRadius: 16, elevation: 6,
   },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
+  confirmSheet: {
+    width: '100%', borderRadius: 20, padding: Spacing.lg,
+    alignItems: 'center', gap: Spacing.md,
+  },
+  confirmIconWrap: {
+    width: 60, height: 60, borderRadius: 30,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  confirmTitle: { fontSize: FontSizes.xl, fontWeight: '800' },
+  confirmBody: { fontSize: FontSizes.md, textAlign: 'center', lineHeight: 22 },
+  confirmError: { fontSize: FontSizes.sm, textAlign: 'center', fontWeight: '600' },
+  confirmActions: { flexDirection: 'row', gap: Spacing.md, width: '100%', marginTop: Spacing.sm },
+  confirmCancelBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12,
+    alignItems: 'center', borderWidth: 1,
+  },
+  confirmCancelText: { fontSize: FontSizes.md, fontWeight: '600' },
+  confirmDeleteBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12,
+    alignItems: 'center', borderWidth: 1,
+  },
+  confirmDeleteText: { fontSize: FontSizes.md, fontWeight: '700' },
 });

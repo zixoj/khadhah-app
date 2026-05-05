@@ -288,18 +288,14 @@ export default function FreeScreen() {
                 </View>
               ) : canReserve ? (
                 <TouchableOpacity
-                  style={[styles.reserveBtn, {
-                    backgroundColor: isDark ? 'rgba(0,255,135,0.1)' : colors.primary,
-                    borderColor: isDark ? colors.primary : 'transparent',
-                    borderWidth: isDark ? 1 : 0,
-                  }]}
+                  style={[styles.reserveBtn, { backgroundColor: colors.primary }]}
                   onPress={() => handleReserve(item.id)}
                   disabled={reserving === item.id}
                   activeOpacity={0.8}
                 >
                   {reserving === item.id
-                    ? <ActivityIndicator size="small" color={isDark ? colors.primary : '#fff'} />
-                    : <Text style={[styles.reserveBtnText, { color: isDark ? colors.primary : '#fff' }]}>احجزه لمدة ساعة</Text>
+                    ? <ActivityIndicator size="small" color="#000" />
+                    : <Text style={[styles.reserveBtnText, { color: '#000' }]}>احجزه لمدة ساعة</Text>
                   }
                 </TouchableOpacity>
               ) : item.status !== 'available' && !isMyReservation ? (
@@ -319,12 +315,12 @@ export default function FreeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: isDark ? colors.surface : '#059669', borderBottomColor: isDark ? colors.cardBorder : 'transparent', borderBottomWidth: isDark ? 1 : 0 }]}>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: isDark ? colors.cardBorder : '#E8EDF2', borderBottomWidth: 1 }]}>
         <View style={styles.headerContent}>
-          <Gift size={22} color={isDark ? colors.primary : '#fff'} />
-          <Text style={[styles.headerTitle, { color: isDark ? colors.primary : '#fff' }]}>خذه</Text>
+          <Gift size={22} color={colors.primary} />
+          <Text style={[styles.headerTitle, { color: colors.text }]}>خذه</Text>
         </View>
-        <Text style={[styles.headerSub, { color: isDark ? colors.textSecondary : 'rgba(255,255,255,0.75)' }]}>احجز لمدة ساعة قبل غيرك</Text>
+        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>احجز لمدة ساعة قبل غيرك</Text>
       </View>
 
       <FlatList
@@ -379,14 +375,11 @@ export default function FreeScreen() {
 
       {profile && (
         <TouchableOpacity
-          style={[styles.fab, {
-            backgroundColor: isDark ? colors.primary : colors.free,
-            shadowColor: colors.primary,
-          }]}
+          style={[styles.fab, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
           onPress={() => router.push('/add-post?type=free')}
           activeOpacity={0.8}
         >
-          <Plus size={28} color={isDark ? '#000' : '#fff'} />
+          <Plus size={28} color="#000" strokeWidth={2.5} />
         </TouchableOpacity>
       )}
 

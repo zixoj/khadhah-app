@@ -16,8 +16,7 @@ import PhoneVerifyModal from '@/components/PhoneVerifyModal';
 interface ExtendedProfile {
   id: string; full_name: string; phone: string; phone_verified: boolean;
   role: string; avatar_url: string; city: string; is_verified: boolean;
-  rating_avg: number; rating_count: number;
-  boost_count: number; created_at: string;
+  rating_avg: number; rating_count: number; created_at: string;
 }
 
 export default function ProfileScreen() {
@@ -59,17 +58,17 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: C.background }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       {/* Header */}
-      <View style={[styles.headerBg, { backgroundColor: isDark ? C.surface : '#0F2318', borderBottomColor: isDark ? C.cardBorder : 'transparent', borderBottomWidth: isDark ? 1 : 0 }]}>
+      <View style={[styles.headerBg, { backgroundColor: C.surface, borderBottomColor: isDark ? C.cardBorder : '#E8EDF2', borderBottomWidth: 1 }]}>
         <View style={styles.headerTop}>
-          <Text style={[styles.headerTitle, { color: isDark ? C.text : '#fff' }]}>حسابي</Text>
+          <Text style={[styles.headerTitle, { color: C.text }]}>حسابي</Text>
         </View>
         <View style={styles.avatarSection}>
           <TouchableOpacity onPress={() => router.push('/settings/edit-profile')} activeOpacity={0.8}>
             {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={[styles.avatar, { borderColor: isDark ? C.primary : 'rgba(255,255,255,0.3)' }]} />
+              <Image source={{ uri: profile.avatar_url }} style={[styles.avatar, { borderColor: C.primary }]} />
             ) : (
-              <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? C.card : 'rgba(255,255,255,0.15)', borderColor: isDark ? C.primary : 'rgba(255,255,255,0.3)' }]}>
-                <User size={38} color={isDark ? C.primary : '#fff'} />
+              <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? C.card : '#F4F7FA', borderColor: C.primary }]}>
+                <User size={38} color={C.primary} />
               </View>
             )}
             <View style={[styles.editBadge, { backgroundColor: isDark ? C.primary : '#fff' }]}>
@@ -79,17 +78,17 @@ export default function ProfileScreen() {
 
           <View style={styles.nameBlock}>
             <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: isDark ? C.text : '#fff' }]}>{profile?.full_name || 'مستخدم'}</Text>
+              <Text style={[styles.name, { color: C.text }]}>{profile?.full_name || 'مستخدم'}</Text>
               {profile?.is_verified && <CheckCircle size={17} color="#1DA1F2" fill="#1DA1F2" />}
             </View>
             <View style={styles.roleRow}>
-              {isAgent ? <Truck size={12} color={isDark ? C.textSecondary : 'rgba(255,255,255,0.7)'} /> : <Megaphone size={12} color={isDark ? C.textSecondary : 'rgba(255,255,255,0.7)'} />}
-              <Text style={[styles.roleText, { color: isDark ? C.textSecondary : 'rgba(255,255,255,0.7)' }]}>{isAgent ? 'مندوب توصيل' : 'معلن'}</Text>
-              {profile?.city ? (<><Text style={[styles.dotSep, { color: isDark ? C.border : 'rgba(255,255,255,0.4)' }]}>•</Text><Text style={[styles.roleText, { color: isDark ? C.textSecondary : 'rgba(255,255,255,0.7)' }]}>{profile.city}</Text></>) : null}
+              {isAgent ? <Truck size={12} color={C.textSecondary} /> : <Megaphone size={12} color={C.textSecondary} />}
+              <Text style={[styles.roleText, { color: C.textSecondary }]}>{isAgent ? 'مندوب توصيل' : 'معلن'}</Text>
+              {profile?.city ? (<><Text style={[styles.dotSep, { color: C.border }]}>•</Text><Text style={[styles.roleText, { color: C.textSecondary }]}>{profile.city}</Text></>) : null}
             </View>
             <View style={styles.starsRow}>
               {renderStars(profile?.rating_avg || 0)}
-              <Text style={[styles.ratingText, { color: isDark ? C.textSecondary : 'rgba(255,255,255,0.6)' }]}>
+              <Text style={[styles.ratingText, { color: C.textSecondary }]}>
                 {profile?.rating_avg ? profile.rating_avg.toFixed(1) : '0.0'} ({profile?.rating_count || 0})
               </Text>
             </View>
@@ -97,35 +96,23 @@ export default function ProfileScreen() {
         </View>
 
         {/* Stats */}
-        <View style={[styles.statsRow, { backgroundColor: isDark ? C.card : 'rgba(255,255,255,0.1)', borderColor: isDark ? C.cardBorder : 'rgba(255,255,255,0.15)' }]}>
+        <View style={[styles.statsRow, { backgroundColor: isDark ? C.card : '#F4F7FA', borderColor: isDark ? C.cardBorder : '#E8EDF2' }]}>
           <TouchableOpacity style={styles.statItem} onPress={() => router.push('/my-listings')} activeOpacity={0.7}>
-            <Text style={[styles.statNum, { color: isDark ? C.primary : '#fff' }]}>{myListingsCount}</Text>
-            <Text style={[styles.statLabel, { color: isDark ? C.textSecondary : 'rgba(255,255,255,0.65)' }]}>إعلاناتي</Text>
+            <Text style={[styles.statNum, { color: C.primary }]}>{myListingsCount}</Text>
+            <Text style={[styles.statLabel, { color: C.textSecondary }]}>إعلاناتي</Text>
           </TouchableOpacity>
-          <View style={[styles.statDivider, { backgroundColor: isDark ? C.border : 'rgba(255,255,255,0.15)' }]} />
+          <View style={[styles.statDivider, { backgroundColor: C.border }]} />
           <TouchableOpacity style={styles.statItem} onPress={() => router.push('/favorites')} activeOpacity={0.7}>
-            <Text style={[styles.statNum, { color: isDark ? C.primary : '#fff' }]}>{favoritesCount}</Text>
-            <Text style={[styles.statLabel, { color: isDark ? C.textSecondary : 'rgba(255,255,255,0.65)' }]}>المفضلة</Text>
+            <Text style={[styles.statNum, { color: C.primary }]}>{favoritesCount}</Text>
+            <Text style={[styles.statLabel, { color: C.textSecondary }]}>المفضلة</Text>
           </TouchableOpacity>
-          <View style={[styles.statDivider, { backgroundColor: isDark ? C.border : 'rgba(255,255,255,0.15)' }]} />
+          <View style={[styles.statDivider, { backgroundColor: C.border }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statNum, { color: isDark ? C.primary : '#fff' }]}>{(profile?.rating_avg || 0).toFixed(1)}</Text>
-            <Text style={[styles.statLabel, { color: isDark ? C.textSecondary : 'rgba(255,255,255,0.65)' }]}>تقييمي</Text>
+            <Text style={[styles.statNum, { color: C.primary }]}>{(profile?.rating_avg || 0).toFixed(1)}</Text>
+            <Text style={[styles.statLabel, { color: C.textSecondary }]}>تقييمي</Text>
           </View>
         </View>
       </View>
-
-      {/* Boost Banner */}
-      {(profile?.boost_count || 0) > 0 && (
-        <TouchableOpacity style={[styles.banner, { backgroundColor: isDark ? 'rgba(245,158,11,0.1)' : '#FFFBEB', borderColor: isDark ? 'rgba(245,158,11,0.3)' : '#FCD34D' }]} onPress={() => router.push('/my-listings')} activeOpacity={0.85}>
-          <ChevronLeft size={17} color="#F59E0B" />
-          <View style={{ flex: 1, alignItems: 'flex-end' }}>
-            <Text style={[styles.bannerTitle, { color: '#D97706' }]}>لديك {profile?.boost_count} بوست مجاني</Text>
-            <Text style={[styles.bannerSub, { color: '#F59E0B' }]}>ميّز إعلانك الآن مجاناً</Text>
-          </View>
-          <Text style={{ fontSize: 22 }}>🚀</Text>
-        </TouchableOpacity>
-      )}
 
       {/* Phone verification */}
       {profile && !profile.phone_verified && (
@@ -154,7 +141,7 @@ export default function ProfileScreen() {
       />
 
       {/* Section: الحساب */}
-      <View style={[styles.sectionCard, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E8EDF2' }]}>
+      <View style={[styles.sectionCard, { backgroundColor: isDark ? '#161616' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.07)' : '#E8EDF2' }]}>
         <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>الحساب</Text>
         <MenuItem icon={<Edit3 size={18} color={C.primary} />} label="تعديل الملف الشخصي" onPress={() => router.push('/settings/edit-profile')} colors={C} isDark={isDark} />
         <MenuItem icon={<List size={18} color={C.primary} />} label="إعلاناتي" badge={myListingsCount > 0 ? `${myListingsCount}` : undefined} onPress={() => router.push('/my-listings')} colors={C} isDark={isDark} />
@@ -163,7 +150,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* Section: الإعدادات */}
-      <View style={[styles.sectionCard, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E8EDF2' }]}>
+      <View style={[styles.sectionCard, { backgroundColor: isDark ? '#161616' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.07)' : '#E8EDF2' }]}>
         <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>الإعدادات</Text>
         <MenuItem icon={<Bell size={18} color={C.primary} />} label="إعدادات الإشعارات" onPress={() => router.push('/notifications-settings')} colors={C} isDark={isDark} />
         <MenuItem icon={<Shield size={18} color={C.primary} />} label="الخصوصية والأمان" onPress={() => router.push('/settings/privacy-security')} colors={C} isDark={isDark} />
@@ -190,7 +177,7 @@ function MenuItem({
   return (
     <>
       <Pressable
-        style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}
+        style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: isDark ? '#1E1E1E' : '#F4F7FA' }]}
         onPress={onPress}
       >
         <ChevronLeft size={16} color={C.textMuted} />
@@ -205,7 +192,7 @@ function MenuItem({
           </View>
           {sublabel && <Text style={[styles.menuSublabel, { color: C.primary }]}>{sublabel}</Text>}
         </View>
-        <View style={[styles.menuIcon, { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}>{icon}</View>
+        <View style={[styles.menuIcon, { backgroundColor: isDark ? '#222' : '#F4F7FA' }]}>{icon}</View>
       </Pressable>
       {!last && <View style={[styles.menuDivider, { backgroundColor: isDark ? C.border : '#F0F4F8' }]} />}
     </>
