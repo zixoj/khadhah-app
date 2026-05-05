@@ -197,7 +197,7 @@ export default function FreeScreen() {
       <TouchableOpacity
         style={[styles.postCard, {
           backgroundColor: colors.card,
-          borderColor: isDark ? colors.cardBorder : '#E8EDF2',
+          borderColor: isDark ? 'rgba(0,200,83,0.12)' : '#E8EDF2',
           opacity: isTaken ? 0.5 : 1,
           shadowColor: isDark ? colors.primary : '#000',
         }]}
@@ -331,23 +331,23 @@ export default function FreeScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
             <TouchableOpacity
               style={[styles.filterChip, {
-                backgroundColor: !selectedCategory ? colors.primary : (isDark ? colors.card : '#fff'),
-                borderColor: !selectedCategory ? colors.primary : (isDark ? colors.cardBorder : '#E0E8EF'),
+                backgroundColor: !selectedCategory ? colors.primary : (isDark ? '#1A2020' : '#F5F5F5'),
+                borderColor: !selectedCategory ? colors.primary : (isDark ? 'rgba(255,255,255,0.12)' : '#D1D5DB'),
               }]}
               onPress={() => setSelectedCategory(null)}
             >
-              <Text style={[styles.filterChipText, { color: !selectedCategory ? (isDark ? '#000' : '#fff') : colors.textSecondary }]}>الكل</Text>
+              <Text style={[styles.filterChipText, { color: !selectedCategory ? '#000' : colors.textSecondary }]}>الكل</Text>
             </TouchableOpacity>
             {CATEGORIES.map(({ label, value }) => (
               <TouchableOpacity
                 key={value}
                 style={[styles.filterChip, {
-                  backgroundColor: selectedCategory === value ? colors.primary : (isDark ? colors.card : '#fff'),
-                  borderColor: selectedCategory === value ? colors.primary : (isDark ? colors.cardBorder : '#E0E8EF'),
+                  backgroundColor: selectedCategory === value ? colors.primary : (isDark ? '#1A2020' : '#F5F5F5'),
+                  borderColor: selectedCategory === value ? colors.primary : (isDark ? 'rgba(255,255,255,0.12)' : '#D1D5DB'),
                 }]}
                 onPress={() => setSelectedCategory(value)}
               >
-                <Text style={[styles.filterChipText, { color: selectedCategory === value ? (isDark ? '#000' : '#fff') : colors.textSecondary }]}>{label}</Text>
+                <Text style={[styles.filterChipText, { color: selectedCategory === value ? '#000' : colors.textSecondary }]}>{label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -418,12 +418,12 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   filterChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 7,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 99,
+    borderWidth: 1.5,
   },
-  filterChipText: { fontSize: FontSizes.sm, fontWeight: '600' },
+  filterChipText: { fontSize: FontSizes.sm, fontWeight: '700' },
 
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md, paddingVertical: 80 },
   emptyText: { fontSize: FontSizes.md },
@@ -432,19 +432,19 @@ const styles = StyleSheet.create({
 
   postCard: {
     flex: 1,
-    borderRadius: BorderRadius.xl,
+    borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 5,
   },
   imageWrapper: { position: 'relative' },
-  postImage: { width: '100%', height: 110, resizeMode: 'cover' },
+  postImage: { width: '100%', height: 118, resizeMode: 'cover' },
   postImagePlaceholder: {
     width: '100%',
-    height: 110,
+    height: 118,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -469,10 +469,14 @@ const styles = StyleSheet.create({
   countdownText: { fontSize: 10, color: '#F59E0B', fontWeight: '700' },
 
   reserveBtn: {
-    borderRadius: BorderRadius.md,
-    paddingVertical: 9,
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 4,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
   },
   reserveBtnText: { fontSize: FontSizes.sm, fontWeight: '700' },
   unavailableBtn: {

@@ -11,8 +11,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
-import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
-import { ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin } from 'lucide-react-native';
+import { Spacing, FontSizes } from '@/lib/theme';
+import { ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin, Heart } from 'lucide-react-native';
 
 interface RecentListing {
   id: string;
@@ -33,6 +33,13 @@ function timeAgo(dateStr: string): string {
   return `منذ ${Math.floor(diff / 86400)} يوم`;
 }
 
+const STATUS_CONFIG: Record<string, { label: string; bg: string; dot: string }> = {
+  available: { label: 'متاح', bg: 'rgba(0,200,83,0.18)', dot: '#00C853' },
+  reserved: { label: 'محجوز', bg: 'rgba(245,158,11,0.18)', dot: '#F59E0B' },
+  reserved_temp: { label: 'محجوز', bg: 'rgba(245,158,11,0.18)', dot: '#F59E0B' },
+  taken: { label: 'مأخوذ', bg: 'rgba(239,68,68,0.18)', dot: '#EF4444' },
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
@@ -49,19 +56,6 @@ export default function HomeScreen() {
       .then(({ data }) => { if (data) setRecent(data); });
   }, []);
 
-  const statusLabel: Record<string, string> = {
-    available: 'متاح',
-    reserved: 'محجوز',
-    reserved_temp: 'محجوز مؤقتًا',
-    taken: 'مأخوذ',
-  };
-  const statusColor: Record<string, string> = {
-    available: C.primary,
-    reserved: C.exchange,
-    reserved_temp: C.warning,
-    taken: C.textMuted,
-  };
-
   const firstName = profile?.full_name ? profile.full_name.split(' ')[0] : 'صديقي';
 
   return (
@@ -72,17 +66,22 @@ export default function HomeScreen() {
     >
       {/* ── Hero ── */}
       <View style={[styles.hero, { backgroundColor: C.background }]}>
-        {isDark && <View style={styles.glowBlob} pointerEvents="none" />}
+        {isDark && (
+          <>
+            <View style={[styles.glowTop, { backgroundColor: 'rgba(0,200,83,0.06)' }]} pointerEvents="none" />
+            <View style={[styles.glowRight, { backgroundColor: 'rgba(0,200,83,0.04)' }]} pointerEvents="none" />
+          </>
+        )}
 
         <View style={styles.heroInner}>
           <Text style={[styles.greeting, { color: C.primary }]}>
-            مرحباً {firstName}
+            مرحباً {firstName} 👋
           </Text>
           <Text style={[styles.heroTitle, { color: C.text }]}>
             لا ترميها…{'\n'}خذها أو بدّلها
           </Text>
           <Text style={[styles.heroSub, { color: C.textSecondary }]}>
-            اعرض أغراضك مجانًا أو بدّلها بسهولة
+            اعرض أغراضك مجانًا أو بدّلها بما تحتاجه
           </Text>
         </View>
 
@@ -93,21 +92,22 @@ export default function HomeScreen() {
             style={[
               styles.mainCard,
               {
-                backgroundColor: isDark ? '#0D1A2E' : '#EFF6FF',
-                borderColor: isDark ? 'rgba(10,132,255,0.22)' : 'rgba(0,102,204,0.15)',
+                backgroundColor: isDark ? '#0C1B2E' : '#EFF6FF',
+                borderColor: isDark ? 'rgba(10,132,255,0.25)' : 'rgba(0,102,204,0.15)',
+                shadowColor: isDark ? C.exchange : 'transparent',
               },
             ]}
             onPress={() => router.push('/(tabs)/exchange')}
             activeOpacity={0.82}
           >
-            {isDark && <View style={[styles.cardGlowBlob, { backgroundColor: 'rgba(10,132,255,0.07)' }]} />}
-            <View style={[styles.cardIconWrap, { backgroundColor: isDark ? 'rgba(10,132,255,0.14)' : 'rgba(0,102,204,0.10)' }]}>
-              <ArrowLeftRight size={24} color={C.exchange} />
+            {isDark && <View style={[styles.cardGlow, { backgroundColor: 'rgba(10,132,255,0.08)' }]} />}
+            <View style={[styles.cardIconWrap, { backgroundColor: isDark ? 'rgba(10,132,255,0.16)' : 'rgba(0,102,204,0.10)' }]}>
+              <ArrowLeftRight size={26} color={C.exchange} strokeWidth={2.2} />
             </View>
             <Text style={[styles.cardLabel, { color: isDark ? '#CBE8FF' : '#003D99' }]}>بدّل</Text>
-            <Text style={[styles.cardSub, { color: isDark ? 'rgba(10,132,255,0.6)' : '#0066CC' }]}>تبادل الأغراض</Text>
-            <View style={[styles.cardArrow, { backgroundColor: isDark ? 'rgba(10,132,255,0.14)' : 'rgba(0,102,204,0.10)' }]}>
-              <Text style={{ color: C.exchange, fontSize: 12, fontWeight: '700' }}>←</Text>
+            <Text style={[styles.cardSub, { color: isDark ? 'rgba(74,159,255,0.75)' : '#0066CC' }]}>تبادل بلا مال</Text>
+            <View style={[styles.cardArrowWrap, { backgroundColor: isDark ? 'rgba(10,132,255,0.16)' : 'rgba(0,102,204,0.10)' }]}>
+              <Text style={[styles.cardArrowText, { color: C.exchange }]}>←</Text>
             </View>
           </TouchableOpacity>
 
@@ -116,21 +116,22 @@ export default function HomeScreen() {
             style={[
               styles.mainCard,
               {
-                backgroundColor: isDark ? '#0A1F12' : '#ECFDF5',
-                borderColor: isDark ? 'rgba(0,200,83,0.20)' : 'rgba(0,168,68,0.15)',
+                backgroundColor: isDark ? '#091A10' : '#ECFDF5',
+                borderColor: isDark ? 'rgba(0,200,83,0.25)' : 'rgba(0,168,68,0.15)',
+                shadowColor: isDark ? C.primary : 'transparent',
               },
             ]}
             onPress={() => router.push('/(tabs)/free')}
             activeOpacity={0.82}
           >
-            {isDark && <View style={[styles.cardGlowBlob, { backgroundColor: 'rgba(0,200,83,0.06)' }]} />}
-            <View style={[styles.cardIconWrap, { backgroundColor: isDark ? 'rgba(0,200,83,0.14)' : 'rgba(0,168,68,0.10)' }]}>
-              <Gift size={24} color={C.primary} />
+            {isDark && <View style={[styles.cardGlow, { backgroundColor: 'rgba(0,200,83,0.07)' }]} />}
+            <View style={[styles.cardIconWrap, { backgroundColor: isDark ? 'rgba(0,200,83,0.16)' : 'rgba(0,168,68,0.10)' }]}>
+              <Gift size={26} color={C.primary} strokeWidth={2.2} />
             </View>
             <Text style={[styles.cardLabel, { color: isDark ? '#C8FFE0' : '#003D1A' }]}>خذه</Text>
-            <Text style={[styles.cardSub, { color: isDark ? 'rgba(0,200,83,0.6)' : C.primaryDim }]}>مجاني تمامًا</Text>
-            <View style={[styles.cardArrow, { backgroundColor: isDark ? 'rgba(0,200,83,0.12)' : 'rgba(0,168,68,0.10)' }]}>
-              <Text style={{ color: C.primary, fontSize: 12, fontWeight: '700' }}>←</Text>
+            <Text style={[styles.cardSub, { color: isDark ? 'rgba(0,200,83,0.7)' : '#00784C' }]}>مجاني تمامًا</Text>
+            <View style={[styles.cardArrowWrap, { backgroundColor: isDark ? 'rgba(0,200,83,0.14)' : 'rgba(0,168,68,0.10)' }]}>
+              <Text style={[styles.cardArrowText, { color: C.primary }]}>←</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -143,13 +144,13 @@ export default function HomeScreen() {
             styles.ctaBtn,
             {
               backgroundColor: C.primary,
-              shadowColor: isDark ? C.primary : 'transparent',
+              shadowColor: C.primary,
             },
           ]}
           onPress={() => router.push('/add-post')}
           activeOpacity={0.85}
         >
-          <Plus size={20} color="#000" strokeWidth={2.8} />
+          <Plus size={22} color="#000" strokeWidth={3} />
           <Text style={styles.ctaBtnText}>أضف إعلان</Text>
         </TouchableOpacity>
       </View>
@@ -165,75 +166,81 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.recentGrid}>
-            {recent.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.recentCard,
-                  {
-                    backgroundColor: C.card,
-                    borderColor: isDark ? C.cardBorder : '#E8E8E8',
-                    shadowColor: isDark ? C.primary : '#000',
-                  },
-                ]}
-                onPress={() => router.push(`/post-detail?id=${item.id}`)}
-                activeOpacity={0.8}
-              >
-                {item.image_url ? (
-                  <Image source={{ uri: item.image_url }} style={styles.recentImg} />
-                ) : (
-                  <View style={[
-                    styles.recentImgPlaceholder,
+            {recent.map((item) => {
+              const sConf = STATUS_CONFIG[item.status] ?? { label: item.status, bg: 'rgba(100,116,139,0.18)', dot: '#9CA3AF' };
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.recentCard,
                     {
-                      backgroundColor: item.type === 'free'
-                        ? (isDark ? 'rgba(0,200,83,0.07)' : '#ECFDF5')
-                        : (isDark ? 'rgba(10,132,255,0.07)' : '#EFF6FF'),
+                      backgroundColor: C.card,
+                      borderColor: isDark ? 'rgba(0,200,83,0.10)' : '#E8E8E8',
+                      shadowColor: isDark ? C.primary : '#000',
                     },
-                  ]}>
-                    {item.type === 'free'
-                      ? <Gift size={22} color={C.free} />
-                      : <ArrowLeftRight size={22} color={C.exchange} />
-                    }
-                  </View>
-                )}
-
-                <View style={styles.cardBadgeRow}>
-                  {item.is_urgent && (
-                    <View style={styles.urgentBadge}>
-                      <Flame size={9} color="#fff" />
-                      <Text style={styles.urgentText}>مستعجل</Text>
+                  ]}
+                  onPress={() => router.push(`/post-detail?id=${item.id}`)}
+                  activeOpacity={0.8}
+                >
+                  {/* Image */}
+                  {item.image_url ? (
+                    <Image source={{ uri: item.image_url }} style={styles.recentImg} />
+                  ) : (
+                    <View style={[
+                      styles.recentImgPlaceholder,
+                      {
+                        backgroundColor: item.type === 'free'
+                          ? (isDark ? 'rgba(0,200,83,0.08)' : '#ECFDF5')
+                          : (isDark ? 'rgba(10,132,255,0.08)' : '#EFF6FF'),
+                      },
+                    ]}>
+                      {item.type === 'free'
+                        ? <Gift size={26} color={C.primary} />
+                        : <ArrowLeftRight size={26} color={C.exchange} />
+                      }
                     </View>
                   )}
-                  <View style={[
-                    styles.statusBadge,
-                    { backgroundColor: `${statusColor[item.status] ?? C.textMuted}18` },
-                  ]}>
-                    <View style={[styles.statusDot, { backgroundColor: statusColor[item.status] ?? C.textMuted }]} />
-                    <Text style={[styles.statusBadgeText, { color: statusColor[item.status] ?? C.textMuted }]}>
-                      {statusLabel[item.status] ?? item.status}
-                    </Text>
-                  </View>
-                </View>
 
-                <View style={styles.recentCardBody}>
-                  <Text style={[styles.recentCardTitle, { color: C.text }]} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  <View style={styles.recentCardMeta}>
-                    {item.city ? (
-                      <View style={styles.metaRow}>
-                        <MapPin size={10} color={C.textSecondary} />
-                        <Text style={[styles.metaText, { color: C.textSecondary }]}>{item.city}</Text>
+                  {/* Overlaid badges */}
+                  <View style={styles.badgeRow}>
+                    {item.is_urgent && (
+                      <View style={styles.urgentBadge}>
+                        <Flame size={9} color="#fff" />
+                        <Text style={styles.urgentText}>مستعجل</Text>
                       </View>
-                    ) : null}
-                    <View style={styles.metaRow}>
-                      <Clock size={10} color={C.textSecondary} />
-                      <Text style={[styles.metaText, { color: C.textSecondary }]}>{timeAgo(item.created_at)}</Text>
+                    )}
+                    <View style={[styles.statusBadge, { backgroundColor: sConf.bg }]}>
+                      <View style={[styles.statusDot, { backgroundColor: sConf.dot }]} />
+                      <Text style={[styles.statusText, { color: sConf.dot }]}>{sConf.label}</Text>
                     </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+
+                  {/* Heart */}
+                  <View style={[styles.heartBtn, { backgroundColor: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.85)' }]}>
+                    <Heart size={13} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                  </View>
+
+                  {/* Body */}
+                  <View style={styles.recentCardBody}>
+                    <Text style={[styles.recentCardTitle, { color: C.text }]} numberOfLines={2}>
+                      {item.title}
+                    </Text>
+                    <View style={styles.recentCardMeta}>
+                      {item.city ? (
+                        <View style={styles.metaRow}>
+                          <MapPin size={10} color={C.textSecondary} />
+                          <Text style={[styles.metaText, { color: C.textSecondary }]}>{item.city}</Text>
+                        </View>
+                      ) : null}
+                      <View style={styles.metaRow}>
+                        <Clock size={10} color={C.textSecondary} />
+                        <Text style={[styles.metaText, { color: C.textSecondary }]}>{timeAgo(item.created_at)}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       )}
@@ -245,43 +252,51 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   hero: {
-    paddingTop: 56,
+    paddingTop: 60,
     paddingBottom: Spacing.lg,
     overflow: 'hidden',
     position: 'relative',
   },
-  glowBlob: {
+  glowTop: {
     position: 'absolute',
-    top: -80,
-    right: -40,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(0,200,83,0.05)',
+    top: -60,
+    right: -60,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
   },
+  glowRight: {
+    position: 'absolute',
+    bottom: 0,
+    left: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+  },
+
   heroInner: {
     paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
+    marginBottom: 20,
   },
   greeting: {
     fontSize: FontSizes.sm,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'right',
-    marginBottom: 6,
+    marginBottom: 8,
     letterSpacing: 0.3,
   },
   heroTitle: {
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: '800',
     textAlign: 'right',
-    lineHeight: 42,
+    lineHeight: 44,
     marginBottom: Spacing.sm,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   heroSub: {
     fontSize: FontSizes.md,
     textAlign: 'right',
-    lineHeight: 22,
+    lineHeight: 24,
   },
 
   cardRow: {
@@ -292,24 +307,28 @@ const styles = StyleSheet.create({
   mainCard: {
     flex: 1,
     borderRadius: 20,
-    borderWidth: 1,
+    borderWidth: 1.5,
     padding: Spacing.md,
     gap: 6,
     position: 'relative',
     overflow: 'hidden',
-    minHeight: 148,
+    minHeight: 152,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.30,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  cardGlowBlob: {
+  cardGlow: {
     position: 'absolute',
-    bottom: -24,
-    right: -24,
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    bottom: -30,
+    right: -30,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   cardIconWrap: {
-    width: 46,
-    height: 46,
+    width: 48,
+    height: 48,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
@@ -327,16 +346,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'right',
   },
-  cardArrow: {
+  cardArrowWrap: {
     position: 'absolute',
     bottom: Spacing.md,
     left: Spacing.md,
-    width: 26,
-    height: 26,
-    borderRadius: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  cardArrowText: { fontSize: 13, fontWeight: '800' },
 
   ctaWrap: {
     paddingHorizontal: Spacing.lg,
@@ -347,12 +367,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    borderRadius: 16,
-    paddingVertical: 16,
+    borderRadius: 18,
+    paddingVertical: 17,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.40,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowOpacity: 0.50,
+    shadowRadius: 24,
+    elevation: 10,
   },
   ctaBtnText: {
     fontSize: FontSizes.lg,
@@ -374,7 +394,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FontSizes.lg,
     fontWeight: '700',
-    textAlign: 'right',
   },
   seeAll: {
     fontSize: FontSizes.sm,
@@ -384,26 +403,27 @@ const styles = StyleSheet.create({
   recentGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm + 4,
+    gap: 12,
   },
   recentCard: {
     width: '47.5%',
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 5,
   },
-  recentImg: { width: '100%', height: 108, resizeMode: 'cover' },
+  recentImg: { width: '100%', height: 112, resizeMode: 'cover' },
   recentImgPlaceholder: {
     width: '100%',
-    height: 108,
+    height: 112,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardBadgeRow: {
+
+  badgeRow: {
     position: 'absolute',
     top: 8,
     left: 8,
@@ -416,10 +436,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 6,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: BorderRadius.full,
+    borderRadius: 99,
   },
   urgentText: { fontSize: 9, color: '#fff', fontWeight: '700' },
   statusBadge: {
@@ -428,15 +448,26 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: BorderRadius.full,
+    borderRadius: 99,
   },
   statusDot: { width: 5, height: 5, borderRadius: 3 },
-  statusBadgeText: { fontSize: 9, fontWeight: '700' },
+  statusText: { fontSize: 9, fontWeight: '700' },
 
-  recentCardBody: { padding: 10, gap: 5 },
+  heartBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  recentCardBody: { padding: 10, gap: 6 },
   recentCardTitle: {
     fontSize: FontSizes.sm,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'right',
     lineHeight: 18,
   },
@@ -447,5 +478,5 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  metaText: { fontSize: 10 },
+  metaText: { fontSize: 10, fontWeight: '500' },
 });

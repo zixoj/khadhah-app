@@ -96,7 +96,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Stats */}
-        <View style={[styles.statsRow, { backgroundColor: isDark ? C.card : '#F4F7FA', borderColor: isDark ? C.cardBorder : '#E8EDF2' }]}>
+        <View style={[styles.statsRow, { backgroundColor: isDark ? '#111714' : '#F4F7FA', borderColor: isDark ? 'rgba(0,200,83,0.10)' : '#E8EDF2' }]}>
           <TouchableOpacity style={styles.statItem} onPress={() => router.push('/my-listings')} activeOpacity={0.7}>
             <Text style={[styles.statNum, { color: C.primary }]}>{myListingsCount}</Text>
             <Text style={[styles.statLabel, { color: C.textSecondary }]}>إعلاناتي</Text>
@@ -141,7 +141,7 @@ export default function ProfileScreen() {
       />
 
       {/* Section: الحساب */}
-      <View style={[styles.sectionCard, { backgroundColor: isDark ? '#161616' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.07)' : '#E8EDF2' }]}>
+      <View style={[styles.sectionCard, { backgroundColor: C.card, borderColor: isDark ? 'rgba(0,200,83,0.10)' : '#E8EDF2' }]}>
         <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>الحساب</Text>
         <MenuItem icon={<Edit3 size={18} color={C.primary} />} label="تعديل الملف الشخصي" onPress={() => router.push('/settings/edit-profile')} colors={C} isDark={isDark} />
         <MenuItem icon={<List size={18} color={C.primary} />} label="إعلاناتي" badge={myListingsCount > 0 ? `${myListingsCount}` : undefined} onPress={() => router.push('/my-listings')} colors={C} isDark={isDark} />
@@ -150,7 +150,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* Section: الإعدادات */}
-      <View style={[styles.sectionCard, { backgroundColor: isDark ? '#161616' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.07)' : '#E8EDF2' }]}>
+      <View style={[styles.sectionCard, { backgroundColor: C.card, borderColor: isDark ? 'rgba(0,200,83,0.10)' : '#E8EDF2' }]}>
         <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>الإعدادات</Text>
         <MenuItem icon={<Bell size={18} color={C.primary} />} label="إعدادات الإشعارات" onPress={() => router.push('/notifications-settings')} colors={C} isDark={isDark} />
         <MenuItem icon={<Shield size={18} color={C.primary} />} label="الخصوصية والأمان" onPress={() => router.push('/settings/privacy-security')} colors={C} isDark={isDark} />
@@ -177,7 +177,7 @@ function MenuItem({
   return (
     <>
       <Pressable
-        style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: isDark ? '#1E1E1E' : '#F4F7FA' }]}
+        style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: isDark ? '#1A2B22' : '#F0FDF4' }]}
         onPress={onPress}
       >
         <ChevronLeft size={16} color={C.textMuted} />
@@ -192,7 +192,7 @@ function MenuItem({
           </View>
           {sublabel && <Text style={[styles.menuSublabel, { color: C.primary }]}>{sublabel}</Text>}
         </View>
-        <View style={[styles.menuIcon, { backgroundColor: isDark ? '#222' : '#F4F7FA' }]}>{icon}</View>
+        <View style={[styles.menuIcon, { backgroundColor: isDark ? '#1A2020' : '#F0FDF4' }]}>{icon}</View>
       </Pressable>
       {!last && <View style={[styles.menuDivider, { backgroundColor: isDark ? C.border : '#F0F4F8' }]} />}
     </>

@@ -24,17 +24,17 @@ export default function TabLayout() {
 
   const isAgent = profile?.role === 'delivery_agent';
   const bottomPad = Platform.OS !== 'web' ? insets.bottom : 10;
-  const tabBarHeight = 62 + bottomPad;
+  const tabBarHeight = 64 + bottomPad;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: isDark ? '#3A3A3A' : colors.textSecondary,
+        tabBarInactiveTintColor: '#6B7280',
         tabBarStyle: {
-          backgroundColor: isDark ? '#0D0D0D' : colors.tabBar,
-          borderTopColor: isDark ? 'rgba(0,200,83,0.15)' : colors.tabBarBorder,
+          backgroundColor: isDark ? '#080E0B' : '#FFFFFF',
+          borderTopColor: isDark ? 'rgba(0,200,83,0.18)' : '#E5E7EB',
           borderTopWidth: 1,
           height: tabBarHeight,
           paddingBottom: bottomPad,
@@ -44,25 +44,16 @@ export default function TabLayout() {
           left: 0,
           right: 0,
           zIndex: 9999,
-          ...(isDark && {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -6 },
-            shadowOpacity: 0.5,
-            shadowRadius: 16,
-            elevation: 20,
-          }),
-          ...(!isDark && {
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.05,
-            shadowRadius: 8,
-            elevation: 8,
-          }),
+          shadowColor: isDark ? '#000' : '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: isDark ? 0.6 : 0.06,
+          shadowRadius: isDark ? 20 : 10,
+          elevation: 20,
         },
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',
-          marginTop: 1,
+          marginTop: 2,
           letterSpacing: 0.1,
         },
       }}
@@ -71,21 +62,21 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'الرئيسية',
-          tabBarIcon: ({ size, color }) => <Home size={size - 2} color={color} />,
+          tabBarIcon: ({ size, color }) => <Home size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
         }}
       />
       <Tabs.Screen
         name="exchange"
         options={{
           title: 'بدّل',
-          tabBarIcon: ({ size, color }) => <ArrowLeftRight size={size - 2} color={color} />,
+          tabBarIcon: ({ size, color }) => <ArrowLeftRight size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
         }}
       />
       <Tabs.Screen
         name="free"
         options={{
           title: 'خذه',
-          tabBarIcon: ({ size, color }) => <Gift size={size - 2} color={color} />,
+          tabBarIcon: ({ size, color }) => <Gift size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
         }}
       />
       {isAgent && (
@@ -93,7 +84,7 @@ export default function TabLayout() {
           name="deliveries"
           options={{
             title: 'التوصيل',
-            tabBarIcon: ({ size, color }) => <Truck size={size - 2} color={color} />,
+            tabBarIcon: ({ size, color }) => <Truck size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
           }}
         />
       )}
@@ -101,7 +92,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'حسابي',
-          tabBarIcon: ({ size, color }) => <User size={size - 2} color={color} />,
+          tabBarIcon: ({ size, color }) => <User size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
         }}
       />
     </Tabs>

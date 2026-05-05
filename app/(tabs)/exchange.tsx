@@ -176,7 +176,7 @@ export default function ExchangeScreen() {
       <TouchableOpacity
         style={[styles.postCard, {
           backgroundColor: colors.card,
-          borderColor: isDark ? colors.cardBorder : '#E8EDF2',
+          borderColor: isDark ? 'rgba(10,132,255,0.12)' : '#E8EDF2',
           shadowColor: isDark ? colors.exchange : '#000',
         }]}
         onPress={() => router.push(`/post-detail?id=${item.id}`)}
@@ -272,8 +272,8 @@ export default function ExchangeScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
             <TouchableOpacity
               style={[styles.filterChip, {
-                backgroundColor: !selectedCategory ? colors.exchange : (isDark ? colors.card : '#fff'),
-                borderColor: !selectedCategory ? colors.exchange : (isDark ? colors.cardBorder : '#E0E8EF'),
+                backgroundColor: !selectedCategory ? colors.exchange : (isDark ? '#1A2020' : '#F5F5F5'),
+                borderColor: !selectedCategory ? colors.exchange : (isDark ? 'rgba(255,255,255,0.12)' : '#D1D5DB'),
               }]}
               onPress={() => setSelectedCategory(null)}
             >
@@ -283,8 +283,8 @@ export default function ExchangeScreen() {
               <TouchableOpacity
                 key={value}
                 style={[styles.filterChip, {
-                  backgroundColor: selectedCategory === value ? colors.exchange : (isDark ? colors.card : '#fff'),
-                  borderColor: selectedCategory === value ? colors.exchange : (isDark ? colors.cardBorder : '#E0E8EF'),
+                  backgroundColor: selectedCategory === value ? colors.exchange : (isDark ? '#1A2020' : '#F5F5F5'),
+                  borderColor: selectedCategory === value ? colors.exchange : (isDark ? 'rgba(255,255,255,0.12)' : '#D1D5DB'),
                 }]}
                 onPress={() => setSelectedCategory(value)}
               >
@@ -438,8 +438,8 @@ const styles = StyleSheet.create({
 
   filterScroll: { flexGrow: 0 },
   filterRow: { flexDirection: 'row', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, gap: Spacing.sm },
-  filterChip: { paddingHorizontal: Spacing.md, paddingVertical: 7, borderRadius: BorderRadius.full, borderWidth: 1 },
-  filterChipText: { fontSize: FontSizes.sm, fontWeight: '600' },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, borderWidth: 1.5 },
+  filterChipText: { fontSize: FontSizes.sm, fontWeight: '700' },
 
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md, paddingVertical: 80 },
   emptyText: { fontSize: FontSizes.md },
@@ -447,12 +447,12 @@ const styles = StyleSheet.create({
   row: { gap: Spacing.md, marginBottom: Spacing.md },
 
   postCard: {
-    flex: 1, borderRadius: BorderRadius.xl, overflow: 'hidden', borderWidth: 1,
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
+    flex: 1, borderRadius: 18, overflow: 'hidden', borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 14, elevation: 5,
   },
   imageWrapper: { position: 'relative' },
-  postImage: { width: '100%', height: 110, resizeMode: 'cover' },
-  postImagePlaceholder: { width: '100%', height: 110, justifyContent: 'center', alignItems: 'center' },
+  postImage: { width: '100%', height: 118, resizeMode: 'cover' },
+  postImagePlaceholder: { width: '100%', height: 118, justifyContent: 'center', alignItems: 'center' },
   urgentBadge: {
     position: 'absolute', top: 6, right: 6, flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: '#ef4444', paddingHorizontal: 6, paddingVertical: 3, borderRadius: BorderRadius.full,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   interestRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
   interestText: { fontSize: 10, fontWeight: '600' },
 
-  offerBtn: { borderRadius: BorderRadius.md, paddingVertical: 9, alignItems: 'center', marginTop: 2 },
+  offerBtn: { borderRadius: 10, paddingVertical: 10, alignItems: 'center', marginTop: 4 },
   btnInner: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   offerBtnText: { fontSize: FontSizes.sm, fontWeight: '700' },
 

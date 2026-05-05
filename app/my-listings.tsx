@@ -116,7 +116,7 @@ export default function MyListingsScreen() {
   const renderItem = ({ item }: { item: Listing }) => {
     const isExchange = item.type === 'exchange';
     return (
-      <View style={[styles.card, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E0E0E0' }]}>
+      <View style={[styles.card, { backgroundColor: C.card, borderColor: isDark ? 'rgba(0,200,83,0.10)' : '#E5E7EB', shadowColor: isDark ? C.primary : '#000' }]}>
         {/* Image — tappable to open detail */}
         <Pressable
           onPress={() => router.push(`/post-detail?id=${item.id}`)}
@@ -246,7 +246,7 @@ export default function MyListingsScreen() {
         onRequestClose={() => setConfirmId(null)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.confirmSheet, { backgroundColor: isDark ? '#1A1A1A' : '#fff' }]}>
+          <View style={[styles.confirmSheet, { backgroundColor: isDark ? '#111714' : '#fff' }]}>
             <View style={[styles.confirmIconWrap, { backgroundColor: isDark ? 'rgba(255,59,48,0.12)' : '#FFF5F5' }]}>
               <AlertTriangle size={28} color={C.error} />
             </View>
@@ -266,15 +266,15 @@ export default function MyListingsScreen() {
                 <Text style={[styles.confirmCancelText, { color: C.textSecondary }]}>إلغاء</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.confirmDeleteBtn, { backgroundColor: isDark ? 'rgba(255,59,48,0.12)' : C.error, borderColor: C.error }]}
+                style={[styles.confirmDeleteBtn, { backgroundColor: C.error, borderColor: C.error }]}
                 onPress={handleDelete}
                 disabled={!!deletingId}
                 activeOpacity={0.8}
               >
                 {deletingId ? (
-                  <ActivityIndicator size="small" color={isDark ? C.error : '#fff'} />
+                  <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={[styles.confirmDeleteText, { color: isDark ? C.error : '#fff' }]}>حذف</Text>
+                  <Text style={[styles.confirmDeleteText, { color: '#fff' }]}>حذف</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -311,10 +311,14 @@ const styles = StyleSheet.create({
   listContent: { padding: Spacing.md, paddingBottom: 100 },
   row: { gap: Spacing.md, marginBottom: Spacing.md },
   card: {
-    flex: 1, borderRadius: 16, borderWidth: 1,
+    flex: 1, borderRadius: 18, borderWidth: 1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    elevation: 4,
   },
   cardImageWrap: {
-    borderTopLeftRadius: 16, borderTopRightRadius: 16, overflow: 'hidden',
+    borderTopLeftRadius: 18, borderTopRightRadius: 18, overflow: 'hidden',
   },
   cardImage: { width: '100%', height: 100, resizeMode: 'cover' },
   cardImagePlaceholder: { width: '100%', height: 100, justifyContent: 'center', alignItems: 'center' },
