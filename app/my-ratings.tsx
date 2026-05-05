@@ -4,8 +4,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
+import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import { ChevronLeft, Star, User } from 'lucide-react-native';
 
 interface Rating {
@@ -19,6 +20,7 @@ interface Rating {
 export default function MyRatingsScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { colors: C, isDark } = useTheme();
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [loading, setLoading] = useState(true);
   const [avgRating, setAvgRating] = useState(0);
@@ -45,45 +47,52 @@ export default function MyRatingsScreen() {
     Array.from({ length: 5 }).map((_, i) => (
       <Star
         key={i} size={size}
-        color={i < count ? Colors.accent[500] : Colors.neutral[300]}
-        fill={i < count ? Colors.accent[500] : 'transparent'}
+        color={i < count ? '#F59E0B' : (isDark ? '#333' : '#E0E0E0')}
+        fill={i < count ? '#F59E0B' : 'transparent'}
       />
     ));
 
   const renderItem = ({ item }: { item: Rating }) => (
-    <View style={styles.ratingCard}>
+    <View style={[styles.ratingCard, { backgroundColor: isDark ? '#161616' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.07)' : '#E8EDF2' }]}>
       <View style={styles.reviewerRow}>
         {(item.reviewer as any)?.avatar_url ? (
           <Image source={{ uri: (item.reviewer as any).avatar_url }} style={styles.avatar} />
         ) : (
-          <View style={styles.avatarPlaceholder}><User size={18} color={Colors.primary[400]} /></View>
+          <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? '#222' : '#F4F7FA' }]}>
+            <User size={18} color={C.primary} />
+          </View>
         )}
         <View style={styles.reviewerInfo}>
-          <Text style={styles.reviewerName}>{(item.reviewer as any)?.full_name || 'مستخدم'}</Text>
-          <Text style={styles.ratingDate}>{new Date(item.created_at).toLocaleDateString('ar-SA')}</Text>
+          <Text style={[styles.reviewerName, { color: C.text }]}>{(item.reviewer as any)?.full_name || 'مستخدم'}</Text>
+          <Text style={[styles.ratingDate, { color: C.textMuted }]}>{new Date(item.created_at).toLocaleDateString('ar-SA')}</Text>
         </View>
         <View style={styles.starsRow}>{renderStars(item.stars, 14)}</View>
       </View>
-      {item.comment ? <Text style={styles.comment}>{item.comment}</Text> : null}
+      {item.comment ? <Text style={[styles.comment, { color: C.textSecondary }]}>{item.comment}</Text> : null}
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} color={Colors.text} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+        >
+          <ChevronLeft size={22} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>تقييماتي</Text>
-        <View style={{ width: 24 }} />
+        <Text style={[styles.navTitle, { color: C.text }]}>تقييماتي</Text>
+        <View style={{ width: 38 }} />
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary[600]} /></View>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={C.primary} />
+        </View>
       ) : (
         <>
           {ratings.length > 0 && (
-            <View style={styles.summaryCard}>
+            <View style={[styles.summaryCard, { backgroundColor: isDark ? '#111714' : '#0F2318' }]}>
               <Text style={styles.avgNum}>{avgRating.toFixed(1)}</Text>
               <View style={styles.starsRowBig}>{renderStars(Math.round(avgRating), 22)}</View>
               <Text style={styles.totalText}>من {ratings.length} تقييم</Text>
@@ -97,8 +106,10 @@ export default function MyRatingsScreen() {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.center}>
-                <Star size={52} color={Colors.neutral[300]} />
-                <Text style={styles.emptyText}>لا توجد تقييمات بعد</Text>
+                <View style={[styles.emptyIconWrap, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
+                  <Star size={40} color={C.textMuted} />
+                </View>
+                <Text style={[styles.emptyText, { color: C.textSecondary }]}>لا توجد تقييمات بعد</Text>
               </View>
             }
           />
@@ -109,35 +120,36 @@ export default function MyRatingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   navBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md,
-    backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
   },
-  navTitle: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md },
-  emptyText: { fontSize: FontSizes.md, color: Colors.textSecondary },
+  navTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
+  navIconBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md, paddingTop: 80 },
+  emptyIconWrap: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: FontSizes.md },
   summaryCard: {
-    backgroundColor: Colors.primary[700], padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm,
+    padding: Spacing.xl, alignItems: 'center', gap: Spacing.sm,
   },
-  avgNum: { fontSize: 52, fontWeight: '700', color: Colors.white },
+  avgNum: { fontSize: 52, fontWeight: '700', color: '#fff' },
   starsRowBig: { flexDirection: 'row', gap: 4 },
-  totalText: { fontSize: FontSizes.md, color: Colors.primary[200] },
+  totalText: { fontSize: FontSizes.md, color: 'rgba(255,255,255,0.65)' },
   listContent: { padding: Spacing.md, gap: Spacing.md, paddingBottom: 100 },
   ratingCard: {
-    backgroundColor: Colors.white, borderRadius: BorderRadius.lg,
-    borderWidth: 1, borderColor: Colors.border, padding: Spacing.md, gap: Spacing.sm,
+    borderRadius: BorderRadius.lg, borderWidth: 1, padding: Spacing.md, gap: Spacing.sm,
   },
   reviewerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   avatarPlaceholder: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary[50],
+    width: 40, height: 40, borderRadius: 20,
     justifyContent: 'center', alignItems: 'center',
   },
   reviewerInfo: { flex: 1, alignItems: 'flex-end' },
-  reviewerName: { fontSize: FontSizes.md, fontWeight: '600', color: Colors.text },
-  ratingDate: { fontSize: FontSizes.xs, color: Colors.neutral[400] },
+  reviewerName: { fontSize: FontSizes.md, fontWeight: '600' },
+  ratingDate: { fontSize: FontSizes.xs },
   starsRow: { flexDirection: 'row', gap: 2 },
-  comment: { fontSize: FontSizes.sm, color: Colors.textSecondary, textAlign: 'right', lineHeight: 20 },
+  comment: { fontSize: FontSizes.sm, textAlign: 'right', lineHeight: 20 },
 });

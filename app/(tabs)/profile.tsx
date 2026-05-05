@@ -116,20 +116,20 @@ export default function ProfileScreen() {
 
       {/* Phone verification */}
       {profile && !profile.phone_verified && (
-        <TouchableOpacity style={[styles.banner, { backgroundColor: C.errorBg, borderColor: `${C.error}44` }]} onPress={() => setPhoneModalVisible(true)} activeOpacity={0.85}>
+        <TouchableOpacity style={[styles.banner, { backgroundColor: isDark ? 'rgba(255,59,48,0.12)' : '#FFF5F5', borderColor: isDark ? 'rgba(255,59,48,0.30)' : '#FECACA' }]} onPress={() => setPhoneModalVisible(true)} activeOpacity={0.85}>
           <ChevronLeft size={17} color={C.error} />
           <View style={{ flex: 1, alignItems: 'flex-end' }}>
-            <Text style={[styles.bannerTitle, { color: C.error }]}>وثّق رقم جوالك</Text>
-            <Text style={[styles.bannerSub, { color: C.error, opacity: 0.75 }]}>مطلوب للحجز والتبديل والنشر</Text>
+            <Text style={[styles.bannerTitle, { color: isDark ? '#FF6B6B' : '#CC2222' }]}>وثّق رقم جوالك</Text>
+            <Text style={[styles.bannerSub, { color: isDark ? '#FF8888' : '#AA2222' }]}>مطلوب للحجز والتبديل والنشر</Text>
           </View>
           <Phone size={20} color={C.error} />
         </TouchableOpacity>
       )}
 
       {profile?.phone_verified && (
-        <View style={[styles.verifiedBanner, { backgroundColor: isDark ? `${C.primary}10` : '#F0FDF4', borderColor: isDark ? `${C.primary}30` : '#86EFAC' }]}>
-          <ShieldCheck size={17} color={C.primary} />
-          <Text style={[styles.verifiedBannerText, { color: C.primary }]}>رقم الجوال موثق</Text>
+        <View style={[styles.verifiedBanner, { backgroundColor: isDark ? 'rgba(0,200,83,0.12)' : '#F0FDF4', borderColor: isDark ? 'rgba(0,200,83,0.28)' : '#86EFAC' }]}>
+          <ShieldCheck size={17} color={isDark ? '#00C853' : '#166534'} />
+          <Text style={[styles.verifiedBannerText, { color: isDark ? '#00C853' : '#166534' }]}>رقم الجوال موثق</Text>
         </View>
       )}
 

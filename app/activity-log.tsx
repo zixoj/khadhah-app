@@ -4,9 +4,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
+import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
-import { ChevronLeft, Activity, Plus, Trash2, Zap, Wallet, User, Edit3 } from 'lucide-react-native';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { ChevronLeft, Activity, Trash2, User, Edit3 } from 'lucide-react-native';
 
 interface LogItem {
   id: string;
@@ -15,23 +16,10 @@ interface LogItem {
   created_at: string;
 }
 
-const ACTION_ICONS: Record<string, React.ReactNode> = {
-  listing_deleted: <Trash2 size={18} color={Colors.error[500]} />,
-  listing_boosted: <Zap size={18} color={Colors.accent[500]} />,
-  wallet_topup: <Wallet size={18} color={Colors.primary[600]} />,
-  profile_updated: <Edit3 size={18} color={Colors.primary[600]} />,
-};
-
-const ACTION_COLORS: Record<string, string> = {
-  listing_deleted: Colors.error[50],
-  listing_boosted: Colors.accent[50],
-  wallet_topup: Colors.primary[50],
-  profile_updated: Colors.primary[50],
-};
-
 export default function ActivityLogScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { colors: C, isDark } = useTheme();
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,34 +38,53 @@ export default function ActivityLogScreen() {
     setLoading(false);
   };
 
-  const renderItem = ({ item }: { item: LogItem }) => {
-    const icon = ACTION_ICONS[item.action] || <Activity size={18} color={Colors.primary[600]} />;
-    const bgColor = ACTION_COLORS[item.action] || Colors.primary[50];
-    return (
-      <View style={styles.logItem}>
-        <View style={[styles.logIcon, { backgroundColor: bgColor }]}>{icon}</View>
-        <View style={styles.logBody}>
-          <Text style={styles.logDesc}>{item.description}</Text>
-          <Text style={styles.logDate}>
-            {new Date(item.created_at).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </View>
-      </View>
-    );
+  const getActionIcon = (action: string) => {
+    switch (action) {
+      case 'listing_deleted': return <Trash2 size={18} color={C.error} />;
+      case 'profile_updated': return <Edit3 size={18} color={C.primary} />;
+      default: return <Activity size={18} color={C.primary} />;
+    }
   };
 
+  const getActionBg = (action: string): string => {
+    switch (action) {
+      case 'listing_deleted': return isDark ? 'rgba(255,59,48,0.12)' : '#FFF5F5';
+      case 'profile_updated': return isDark ? 'rgba(0,200,83,0.12)' : '#F0FDF4';
+      default: return isDark ? 'rgba(0,200,83,0.08)' : '#F4F7FA';
+    }
+  };
+
+  const renderItem = ({ item }: { item: LogItem }) => (
+    <View style={[styles.logItem, { backgroundColor: isDark ? '#161616' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.07)' : '#E8EDF2' }]}>
+      <View style={[styles.logIcon, { backgroundColor: getActionBg(item.action) }]}>
+        {getActionIcon(item.action)}
+      </View>
+      <View style={styles.logBody}>
+        <Text style={[styles.logDesc, { color: C.text }]}>{item.description}</Text>
+        <Text style={[styles.logDate, { color: C.textMuted }]}>
+          {new Date(item.created_at).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+        </Text>
+      </View>
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
-      <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} color={Colors.text} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+        >
+          <ChevronLeft size={22} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>سجل النشاط</Text>
-        <View style={{ width: 24 }} />
+        <Text style={[styles.navTitle, { color: C.text }]}>سجل النشاط</Text>
+        <View style={{ width: 38 }} />
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary[600]} /></View>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={C.primary} />
+        </View>
       ) : (
         <FlatList
           data={logs}
@@ -87,8 +94,10 @@ export default function ActivityLogScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Activity size={52} color={Colors.neutral[300]} />
-              <Text style={styles.emptyText}>لا يوجد نشاط بعد</Text>
+              <View style={[styles.emptyIconWrap, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
+                <Activity size={40} color={C.textMuted} />
+              </View>
+              <Text style={[styles.emptyText, { color: C.textSecondary }]}>لا يوجد نشاط بعد</Text>
             </View>
           }
         />
@@ -98,23 +107,24 @@ export default function ActivityLogScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   navBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md,
-    backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
   },
-  navTitle: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md },
-  emptyText: { fontSize: FontSizes.md, color: Colors.textSecondary },
+  navTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
+  navIconBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md, paddingTop: 80 },
+  emptyIconWrap: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: FontSizes.md },
   listContent: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 100 },
   logItem: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: Colors.white, borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.border, padding: Spacing.md,
+    borderRadius: BorderRadius.md, borderWidth: 1, padding: Spacing.md,
   },
   logIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   logBody: { flex: 1 },
-  logDesc: { fontSize: FontSizes.md, color: Colors.text, fontWeight: '500', textAlign: 'right' },
-  logDate: { fontSize: FontSizes.xs, color: Colors.neutral[400], textAlign: 'right', marginTop: 2 },
+  logDesc: { fontSize: FontSizes.md, fontWeight: '500', textAlign: 'right' },
+  logDate: { fontSize: FontSizes.xs, textAlign: 'right', marginTop: 2 },
 });

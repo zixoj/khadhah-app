@@ -71,28 +71,39 @@ export default function MyListingsScreen() {
 
   const handleDelete = async () => {
     if (!confirmId) return;
-    setDeletingId(confirmId);
+    const idToDelete = confirmId;
+    setDeletingId(idToDelete);
     setDeleteError(null);
 
-    const { error } = await supabase
+    const { data: deleted, error } = await supabase
       .from('listings')
       .delete()
-      .eq('id', confirmId)
-      .eq('user_id', profile!.id);
+      .eq('id', idToDelete)
+      .eq('user_id', profile!.id)
+      .select('id');
 
     if (error) {
-      setDeleteError('فشل حذف الإعلان. حاول مرة أخرى.');
+      console.error('[delete listing] error:', error);
+      setDeleteError('تعذر حذف الإعلان');
       setDeletingId(null);
       return;
     }
 
-    await supabase.from('activity_log').insert({
+    // RLS can silently block deletes (no error, but no rows deleted)
+    if (!deleted || deleted.length === 0) {
+      console.warn('[delete listing] no rows deleted — possible RLS block or wrong owner');
+      setDeleteError('تعذر حذف الإعلان');
+      setDeletingId(null);
+      return;
+    }
+
+    supabase.from('activity_log').insert({
       user_id: profile!.id,
       action: 'listing_deleted',
       description: 'تم حذف إعلان',
     });
 
-    setListings((prev) => prev.filter((l) => l.id !== confirmId));
+    setListings((prev) => prev.filter((l) => l.id !== idToDelete));
     setDeletingId(null);
     setConfirmId(null);
     setDeleteSuccess(true);
@@ -162,7 +173,7 @@ export default function MyListingsScreen() {
 
       {deleteSuccess && (
         <View style={[styles.successBanner, { backgroundColor: isDark ? 'rgba(0,200,83,0.12)' : '#F0FDF4', borderColor: isDark ? 'rgba(0,200,83,0.25)' : '#86EFAC' }]}>
-          <Text style={[styles.successBannerText, { color: C.primary }]}>تم حذف الإعلان بنجاح</Text>
+          <Text style={[styles.successBannerText, { color: isDark ? '#C8FFE0' : '#166534' }]}>تم حذف الإعلان بنجاح</Text>
         </View>
       )}
 
@@ -222,7 +233,7 @@ export default function MyListingsScreen() {
             </View>
             <Text style={[styles.confirmTitle, { color: C.text }]}>حذف الإعلان</Text>
             <Text style={[styles.confirmBody, { color: C.textSecondary }]}>
-              هل أنت متأكد من حذف هذا الإعلان؟ لا يمكن التراجع عن هذا الإجراء.
+              هل تريد حذف هذا الإعلان؟
             </Text>
             {deleteError && (
               <Text style={[styles.confirmError, { color: C.error }]}>{deleteError}</Text>

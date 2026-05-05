@@ -17,7 +17,6 @@ function AppStack() {
         <Stack.Screen name="conversations" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="my-listings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="favorites" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="wallet" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="my-ratings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="activity-log" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="notifications-settings" options={{ animation: 'slide_from_right' }} />
