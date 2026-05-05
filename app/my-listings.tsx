@@ -16,7 +16,6 @@ import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import {
   ChevronLeft,
   Trash2,
-  Edit3,
   Zap,
   Eye,
   ArrowLeftRight,

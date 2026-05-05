@@ -414,7 +414,7 @@ export default function PostDetailScreen() {
           {/* Countdown for reserved_temp */}
           {(isTempReserved || isConfirmedReserved) && listing.reserved_until && (
             <View style={styles.countdownBanner}>
-              <Clock size={14} color={Colors.accent[700]} />
+              <Clock size={14} color={Colors.accent[600]} />
               <Text style={styles.countdownBannerText}>{countdownText(listing.reserved_until)}</Text>
             </View>
           )}
@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent[50], borderWidth: 1, borderColor: Colors.accent[400],
     borderRadius: BorderRadius.md, padding: Spacing.md, justifyContent: 'flex-end',
   },
-  countdownBannerText: { fontSize: FontSizes.md, color: Colors.accent[700], fontWeight: '700' },
+  countdownBannerText: { fontSize: FontSizes.md, color: Colors.accent[600], fontWeight: '700' },
   description: { fontSize: FontSizes.md, color: Colors.textSecondary, textAlign: 'right', lineHeight: 26 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, justifyContent: 'flex-end', paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md },
   infoText: { fontSize: FontSizes.md, color: Colors.text, fontWeight: '600' },

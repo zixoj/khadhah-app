@@ -128,16 +128,20 @@ export default function PrivacySecurityScreen() {
 
   const fetchBlockedUsers = async () => {
     setBlockedLoading(true);
-    const { data } = await supabase
-      .from('blocked_users')
-      .select('blocked_id, profiles!blocked_users_blocked_id_fkey(id, full_name, phone, avatar_url)')
-      .eq('user_id', profile!.id);
-    if (data) {
-      setBlockedUsers(
-        data
-          .map((row: any) => row.profiles)
-          .filter(Boolean) as BlockedUser[]
-      );
+    const { data: blocks } = await supabase
+      .from('user_blocks')
+      .select('blocked_id')
+      .eq('blocker_id', profile!.id);
+
+    if (blocks && blocks.length > 0) {
+      const ids = blocks.map((b: any) => b.blocked_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, avatar_url')
+        .in('id', ids);
+      if (profiles) setBlockedUsers(profiles as BlockedUser[]);
+    } else {
+      setBlockedUsers([]);
     }
     setBlockedLoading(false);
   };
@@ -149,9 +153,9 @@ export default function PrivacySecurityScreen() {
 
   const unblockUser = async (blockedId: string) => {
     await supabase
-      .from('blocked_users')
+      .from('user_blocks')
       .delete()
-      .eq('user_id', profile!.id)
+      .eq('blocker_id', profile!.id)
       .eq('blocked_id', blockedId);
     setBlockedUsers((prev) => prev.filter((u) => u.id !== blockedId));
   };
