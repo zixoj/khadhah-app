@@ -9,14 +9,14 @@ export const Neon = {
 
 export const DarkColors = {
   // Backgrounds — pure black base
-  background: '#0A0A0A',
-  surface: '#111111',
-  card: '#161616',
-  cardBorder: 'rgba(0,200,83,0.10)',
+  background: '#050B08',
+  surface: '#0D1410',
+  card: '#111714',
+  cardBorder: 'rgba(0,200,83,0.12)',
   // Text
-  text: '#F2F2F2',
-  textSecondary: '#888888',
-  textMuted: '#444444',
+  text: '#FFFFFF',
+  textSecondary: '#A0A0A0',
+  textMuted: '#9CA3AF',
   // Accent — neon green
   primary: Neon.green,
   primaryBright: Neon.greenBright,
@@ -25,12 +25,12 @@ export const DarkColors = {
   primaryGlowStrong: Neon.greenGlowStrong,
   primaryGlowSoft: Neon.greenGlowSoft,
   // UI
-  border: 'rgba(255,255,255,0.07)',
-  navBar: '#0A0A0A',
-  tabBar: '#0D0D0D',
-  tabBarBorder: 'rgba(0,200,83,0.18)',
-  input: '#161616',
-  inputBorder: 'rgba(255,255,255,0.10)',
+  border: 'rgba(255,255,255,0.10)',
+  navBar: '#050B08',
+  tabBar: '#0A0F0C',
+  tabBarBorder: 'rgba(0,200,83,0.20)',
+  input: '#1A2020',
+  inputBorder: 'rgba(255,255,255,0.18)',
   // Status
   success: '#00C853',
   error: '#FF3B30',
@@ -52,13 +52,13 @@ export const DarkColors = {
 };
 
 export const LightColors = {
-  background: '#F4F7FA',
+  background: '#FFFFFF',
   surface: '#FFFFFF',
   card: '#FFFFFF',
   cardBorder: '#E8EDF2',
-  text: '#0A0A0A',
-  textSecondary: '#5A6B7D',
-  textMuted: '#9AACBD',
+  text: '#111111',
+  textSecondary: '#4B5563',
+  textMuted: '#6B7280',
   primary: '#00A844',
   primaryBright: '#00C853',
   primaryDim: '#007A30',
@@ -69,8 +69,8 @@ export const LightColors = {
   navBar: '#FFFFFF',
   tabBar: '#FFFFFF',
   tabBarBorder: '#E0E8EF',
-  input: '#F4F7FA',
-  inputBorder: '#D0DBE5',
+  input: '#F5F5F5',
+  inputBorder: '#D1D5DB',
   success: '#00A844',
   error: '#E53E3E',
   errorBg: '#FFF5F5',

@@ -8,14 +8,14 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { useTheme } from '@/lib/ThemeContext';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import { ChevronLeft, User, Camera, Check } from 'lucide-react-native';
 
 const CITIES = [
@@ -27,6 +27,7 @@ const CITIES = [
 export default function EditProfileScreen() {
   const router = useRouter();
   const { profile: baseProfile } = useAuth();
+  const { colors: C, isDark } = useTheme();
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -36,6 +37,7 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -56,10 +58,7 @@ export default function EditProfileScreen() {
   const pickImage = async () => {
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('إذن مطلوب', 'يرجى السماح بالوصول إلى الصور');
-        return;
-      }
+      if (status !== 'granted') return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -113,96 +112,117 @@ export default function EditProfileScreen() {
         action: 'profile_updated',
         description: 'تم تحديث الملف الشخصي',
       });
-      Alert.alert('تم', 'تم حفظ التعديلات بنجاح', [{ text: 'حسناً', onPress: () => router.back() }]);
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+        router.back();
+      }, 1200);
     }
     setSaving(false);
   };
 
   const displayAvatar = avatarUri || currentAvatarUrl;
+  const inputBg = isDark ? '#1A2020' : '#F5F5F5';
+  const inputBorder = isDark ? 'rgba(255,255,255,0.18)' : '#D1D5DB';
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
+  const navBg = isDark ? '#0D1410' : '#FFFFFF';
+  const navBorder = isDark ? 'rgba(255,255,255,0.10)' : '#E5E7EB';
+  const chipBg = isDark ? '#1A2020' : '#F5F5F5';
+  const chipBorder = isDark ? 'rgba(255,255,255,0.12)' : '#D1D5DB';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.navBar}>
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={[styles.navBar, { backgroundColor: navBg, borderBottomColor: navBorder }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} color={Colors.text} />
+          <ChevronLeft size={24} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>تعديل الملف الشخصي</Text>
+        <Text style={[styles.navTitle, { color: C.text }]}>تعديل الملف الشخصي</Text>
         <TouchableOpacity onPress={handleSave} disabled={saving}>
-          {saving ? <ActivityIndicator size="small" color={Colors.primary[600]} /> : <Check size={24} color={Colors.primary[600]} />}
+          {saving ? <ActivityIndicator size="small" color={C.primary} /> : <Check size={24} color={C.primary} />}
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary[600]} /></View>
+        <View style={styles.center}><ActivityIndicator size="large" color={C.primary} /></View>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {error && (
-            <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View>
+            <View style={[styles.errorBox, { backgroundColor: isDark ? 'rgba(255,59,48,0.12)' : '#FFF5F5', borderColor: isDark ? 'rgba(255,59,48,0.30)' : '#FECACA' }]}>
+              <Text style={[styles.errorText, { color: isDark ? '#FF6B6B' : '#CC2222' }]}>{error}</Text>
+            </View>
           )}
 
-          {/* صورة شخصية */}
+          {saveSuccess && (
+            <View style={[styles.successBox, { backgroundColor: isDark ? 'rgba(0,200,83,0.12)' : '#ECFDF5', borderColor: isDark ? 'rgba(0,200,83,0.30)' : '#6EE7B7' }]}>
+              <Check size={16} color={isDark ? '#00C853' : '#166534'} />
+              <Text style={[styles.successText, { color: isDark ? '#00C853' : '#166534' }]}>تم حفظ التعديلات بنجاح</Text>
+            </View>
+          )}
+
           <View style={styles.avatarSection}>
             <TouchableOpacity onPress={pickImage} activeOpacity={0.8} style={styles.avatarWrap}>
               {displayAvatar ? (
-                <Image source={{ uri: displayAvatar }} style={styles.avatar} />
+                <Image source={{ uri: displayAvatar }} style={[styles.avatar, { borderColor: C.primary }]} />
               ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <User size={44} color={Colors.primary[400]} />
+                <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? '#1A2020' : '#F0FDF4', borderColor: C.primary }]}>
+                  <User size={44} color={C.primary} />
                 </View>
               )}
-              <View style={styles.cameraBadge}>
-                <Camera size={16} color={Colors.white} />
+              <View style={[styles.cameraBadge, { backgroundColor: C.primary }]}>
+                <Camera size={16} color="#000" />
               </View>
             </TouchableOpacity>
-            <Text style={styles.avatarHint}>اضغط لتغيير الصورة الشخصية</Text>
+            <Text style={[styles.avatarHint, { color: C.textSecondary }]}>اضغط لتغيير الصورة الشخصية</Text>
           </View>
 
-          {/* الاسم */}
-          <Text style={styles.label}>الاسم الكامل</Text>
+          <Text style={[styles.label, { color: C.text }]}>الاسم الكامل</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder, color: C.text }]}
             value={fullName}
             onChangeText={setFullName}
             placeholder="أدخل اسمك الكامل"
-            placeholderTextColor={Colors.neutral[400]}
+            placeholderTextColor={placeholderColor}
             textAlign="right"
           />
 
-          {/* رقم الجوال */}
-          <Text style={styles.label}>رقم الجوال</Text>
+          <Text style={[styles.label, { color: C.text }]}>رقم الجوال</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder, color: C.text }]}
             value={phone}
             onChangeText={setPhone}
             placeholder="05xxxxxxxx"
-            placeholderTextColor={Colors.neutral[400]}
+            placeholderTextColor={placeholderColor}
             keyboardType="phone-pad"
             textAlign="right"
           />
 
-          {/* المدينة */}
-          <Text style={styles.label}>المدينة</Text>
+          <Text style={[styles.label, { color: C.text }]}>المدينة</Text>
           <View style={styles.cityGrid}>
             {CITIES.map((c) => (
               <TouchableOpacity
                 key={c}
-                style={[styles.cityChip, city === c && styles.cityChipActive]}
+                style={[
+                  styles.cityChip,
+                  city === c
+                    ? { backgroundColor: C.primary, borderColor: C.primary }
+                    : { backgroundColor: chipBg, borderColor: chipBorder },
+                ]}
                 onPress={() => setCity(c)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.cityChipText, city === c && styles.cityChipTextActive]}>{c}</Text>
+                <Text style={[styles.cityChipText, { color: city === c ? '#000' : C.text }]}>{c}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           <TouchableOpacity
-            style={[styles.saveBtn, saving && styles.btnDisabled]}
+            style={[styles.saveBtn, { backgroundColor: C.primary, shadowColor: C.primary }, saving && styles.btnDisabled]}
             onPress={handleSave}
             disabled={saving}
             activeOpacity={0.8}
           >
             {saving ? (
-              <ActivityIndicator color={Colors.white} />
+              <ActivityIndicator color="#000" />
             ) : (
               <Text style={styles.saveBtnText}>حفظ التعديلات</Text>
             )}
@@ -214,58 +234,55 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   navBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md,
-    backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
   },
-  navTitle: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text },
+  navTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
   scrollContent: { padding: Spacing.lg, paddingBottom: Spacing.xxl, gap: Spacing.md },
   errorBox: {
-    backgroundColor: Colors.error[50], borderWidth: 1, borderColor: Colors.error[400],
-    borderRadius: BorderRadius.md, padding: Spacing.md,
+    borderWidth: 1, borderRadius: BorderRadius.md, padding: Spacing.md,
+    flexDirection: 'row', alignItems: 'center',
   },
-  errorText: { color: Colors.error[600], fontSize: FontSizes.sm, textAlign: 'right' },
+  errorText: { fontSize: FontSizes.sm, textAlign: 'right', fontWeight: '600', flex: 1 },
+  successBox: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    borderWidth: 1, borderRadius: BorderRadius.md, padding: Spacing.md,
+  },
+  successText: { fontSize: FontSizes.sm, fontWeight: '600' },
   avatarSection: { alignItems: 'center', paddingVertical: Spacing.md, gap: Spacing.sm },
   avatarWrap: { position: 'relative' },
-  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: Colors.primary[200] },
+  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 3 },
   avatarPlaceholder: {
     width: 100, height: 100, borderRadius: 50,
-    backgroundColor: Colors.primary[50], justifyContent: 'center', alignItems: 'center',
-    borderWidth: 3, borderColor: Colors.primary[200],
+    justifyContent: 'center', alignItems: 'center', borderWidth: 3,
   },
   cameraBadge: {
     position: 'absolute', bottom: 2, right: 2,
     width: 30, height: 30, borderRadius: 15,
-    backgroundColor: Colors.primary[600],
     justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: Colors.white,
   },
-  avatarHint: { fontSize: FontSizes.sm, color: Colors.textSecondary },
-  label: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text, textAlign: 'right' },
+  avatarHint: { fontSize: FontSizes.sm },
+  label: { fontSize: FontSizes.md, fontWeight: '700', textAlign: 'right' },
   input: {
-    backgroundColor: Colors.white, borderWidth: 1.5, borderColor: Colors.border,
-    borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-    fontSize: FontSizes.md, color: Colors.text, textAlign: 'right',
+    borderWidth: 1.5, borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
+    fontSize: FontSizes.md, textAlign: 'right',
   },
   cityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   cityChip: {
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full, backgroundColor: Colors.white,
-    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: BorderRadius.full, borderWidth: 1,
   },
-  cityChipActive: { backgroundColor: Colors.primary[600], borderColor: Colors.primary[600] },
-  cityChipText: { fontSize: FontSizes.sm, color: Colors.textSecondary },
-  cityChipTextActive: { color: Colors.white, fontWeight: '600' },
+  cityChipText: { fontSize: FontSizes.sm, fontWeight: '500' },
   saveBtn: {
-    backgroundColor: Colors.primary[600], borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md + 2, alignItems: 'center', marginTop: Spacing.md,
-    shadowColor: Colors.primary[600], shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+    borderRadius: BorderRadius.md, paddingVertical: Spacing.md + 2, alignItems: 'center', marginTop: Spacing.md,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   btnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: Colors.white, fontSize: FontSizes.lg, fontWeight: '700' },
+  saveBtnText: { color: '#000', fontSize: FontSizes.lg, fontWeight: '700' },
 });

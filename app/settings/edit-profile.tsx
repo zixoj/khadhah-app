@@ -414,8 +414,7 @@ export default function EditProfileScreen() {
 
         <TouchableOpacity
           style={[styles.saveBtn, {
-            backgroundColor: isDark ? 'transparent' : C.primary,
-            borderColor: C.primary, borderWidth: isDark ? 1.5 : 0,
+            backgroundColor: C.primary,
             shadowColor: C.primary,
           }, saving && styles.btnDisabled]}
           onPress={handleSave}
@@ -423,8 +422,8 @@ export default function EditProfileScreen() {
           activeOpacity={0.8}
         >
           {saving
-            ? <ActivityIndicator color={isDark ? C.primary : '#fff'} />
-            : <Text style={[styles.saveBtnText, { color: isDark ? C.primary : '#fff' }]}>حفظ التعديلات</Text>
+            ? <ActivityIndicator color="#000" />
+            : <Text style={[styles.saveBtnText, { color: '#000' }]}>حفظ التعديلات</Text>
           }
         </TouchableOpacity>
       </ScrollView>

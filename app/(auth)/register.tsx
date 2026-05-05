@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import { useAuth } from '@/lib/auth';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { useTheme } from '@/lib/ThemeContext';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import { User, Mail, Lock, Phone, Truck, Megaphone } from 'lucide-react-native';
 import type { UserRole } from '@/types/database';
 
@@ -24,6 +25,7 @@ export default function RegisterScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
+  const { colors: C, isDark } = useTheme();
 
   const handleRegister = async () => {
     if (!fullName || !email || !password || !phone) {
@@ -37,128 +39,90 @@ export default function RegisterScreen() {
     setLoading(false);
   };
 
+  const inputBg = isDark ? '#1A2020' : '#F5F5F5';
+  const inputBorder = isDark ? 'rgba(255,255,255,0.18)' : '#D1D5DB';
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
+  const cardBg = isDark ? '#111714' : '#FFFFFF';
+  const cardBorder = isDark ? 'rgba(255,255,255,0.10)' : '#E5E7EB';
+  const cardActiveBg = isDark ? 'rgba(0,200,83,0.10)' : '#F0FDF4';
+  const cardActiveBorder = C.primary;
+  const iconCircleBg = isDark ? '#1A2020' : '#F3F4F6';
+  const roleNameColor = isDark ? C.text : '#111111';
+  const roleNameActiveColor = C.primary;
+  const roleDescColor = C.textSecondary;
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: C.background }]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.title}>إنشاء حساب جديد</Text>
-          <Text style={styles.subtitle}>اختر نوع حسابك وابدأ الآن</Text>
+          <Text style={[styles.title, { color: C.text }]}>إنشاء حساب جديد</Text>
+          <Text style={[styles.subtitle, { color: C.textSecondary }]}>اختر نوع حسابك وابدأ الآن</Text>
         </View>
 
         <View style={styles.form}>
           {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={[styles.errorBox, { backgroundColor: isDark ? 'rgba(255,59,48,0.12)' : '#FFF5F5', borderColor: isDark ? 'rgba(255,59,48,0.30)' : '#FECACA' }]}>
+              <Text style={[styles.errorText, { color: isDark ? '#FF6B6B' : '#CC2222' }]}>{error}</Text>
             </View>
           )}
 
-          <Text style={styles.sectionLabel}>نوع الحساب</Text>
+          <Text style={[styles.sectionLabel, { color: C.text }]}>نوع الحساب</Text>
           <View style={styles.roleRow}>
             <TouchableOpacity
               style={[
                 styles.roleCard,
-                role === 'advertiser' && styles.roleCardActive,
+                { backgroundColor: role === 'advertiser' ? cardActiveBg : cardBg, borderColor: role === 'advertiser' ? cardActiveBorder : cardBorder },
               ]}
               onPress={() => setRole('advertiser')}
               activeOpacity={0.7}
             >
-              <View
-                style={[
-                  styles.roleIconCircle,
-                  role === 'advertiser' && styles.roleIconCircleActive,
-                ]}
-              >
-                <Megaphone
-                  size={28}
-                  color={
-                    role === 'advertiser' ? Colors.white : Colors.primary[600]
-                  }
-                />
+              <View style={[styles.roleIconCircle, { backgroundColor: role === 'advertiser' ? C.primary : iconCircleBg }]}>
+                <Megaphone size={28} color={role === 'advertiser' ? '#000' : C.primary} />
               </View>
-              <Text
-                style={[
-                  styles.roleName,
-                  role === 'advertiser' && styles.roleNameActive,
-                ]}
-              >
-                معلن
-              </Text>
-              <Text
-                style={[
-                  styles.roleDesc,
-                  role === 'advertiser' && styles.roleDescActive,
-                ]}
-              >
-                نشر إعلانات التبديل والعطاء
-              </Text>
+              <Text style={[styles.roleName, { color: role === 'advertiser' ? roleNameActiveColor : roleNameColor }]}>معلن</Text>
+              <Text style={[styles.roleDesc, { color: roleDescColor }]}>نشر إعلانات التبديل والعطاء</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[
                 styles.roleCard,
-                role === 'delivery_agent' && styles.roleCardActive,
+                { backgroundColor: role === 'delivery_agent' ? cardActiveBg : cardBg, borderColor: role === 'delivery_agent' ? cardActiveBorder : cardBorder },
               ]}
               onPress={() => setRole('delivery_agent')}
               activeOpacity={0.7}
             >
-              <View
-                style={[
-                  styles.roleIconCircle,
-                  role === 'delivery_agent' && styles.roleIconCircleActive,
-                ]}
-              >
-                <Truck
-                  size={28}
-                  color={
-                    role === 'delivery_agent'
-                      ? Colors.white
-                      : Colors.primary[600]
-                  }
-                />
+              <View style={[styles.roleIconCircle, { backgroundColor: role === 'delivery_agent' ? C.primary : iconCircleBg }]}>
+                <Truck size={28} color={role === 'delivery_agent' ? '#000' : C.primary} />
               </View>
-              <Text
-                style={[
-                  styles.roleName,
-                  role === 'delivery_agent' && styles.roleNameActive,
-                ]}
-              >
-                مندوب
-              </Text>
-              <Text
-                style={[
-                  styles.roleDesc,
-                  role === 'delivery_agent' && styles.roleDescActive,
-                ]}
-              >
-                استلام وتوصيل الطلبات
-              </Text>
+              <Text style={[styles.roleName, { color: role === 'delivery_agent' ? roleNameActiveColor : roleNameColor }]}>مندوب</Text>
+              <Text style={[styles.roleDesc, { color: roleDescColor }]}>استلام وتوصيل الطلبات</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.inputWrapper}>
-            <User size={20} color={Colors.primary[500]} />
+          <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+            <User size={20} color={C.primary} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: C.text }]}
               placeholder="الاسم الكامل"
-              placeholderTextColor={Colors.neutral[400]}
+              placeholderTextColor={placeholderColor}
               value={fullName}
               onChangeText={setFullName}
               textAlign="right"
             />
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Mail size={20} color={Colors.primary[500]} />
+          <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+            <Mail size={20} color={C.primary} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: C.text }]}
               placeholder="البريد الإلكتروني"
-              placeholderTextColor={Colors.neutral[400]}
+              placeholderTextColor={placeholderColor}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -167,12 +131,12 @@ export default function RegisterScreen() {
             />
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Phone size={20} color={Colors.primary[500]} />
+          <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+            <Phone size={20} color={C.primary} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: C.text }]}
               placeholder="رقم الهاتف"
-              placeholderTextColor={Colors.neutral[400]}
+              placeholderTextColor={placeholderColor}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -180,12 +144,12 @@ export default function RegisterScreen() {
             />
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Lock size={20} color={Colors.primary[500]} />
+          <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+            <Lock size={20} color={C.primary} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: C.text }]}
               placeholder="كلمة المرور"
-              placeholderTextColor={Colors.neutral[400]}
+              placeholderTextColor={placeholderColor}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -194,7 +158,7 @@ export default function RegisterScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.submitBtn, loading && styles.btnDisabled]}
+            style={[styles.submitBtn, { backgroundColor: C.primary, shadowColor: C.primary }, loading && styles.btnDisabled]}
             onPress={handleRegister}
             disabled={loading}
             activeOpacity={0.8}
@@ -205,10 +169,10 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>لديك حساب بالفعل؟ </Text>
+            <Text style={[styles.footerText, { color: C.textSecondary }]}>لديك حساب بالفعل؟ </Text>
             <Link href="/login" asChild>
               <TouchableOpacity>
-                <Text style={styles.linkText}>تسجيل الدخول</Text>
+                <Text style={[styles.linkText, { color: C.primary }]}>تسجيل الدخول</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -219,10 +183,7 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.white,
-  },
+  container: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     padding: Spacing.lg,
@@ -236,20 +197,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSizes.xxl,
     fontWeight: '700',
-    color: Colors.text,
     marginBottom: Spacing.xs,
   },
-  subtitle: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
-  },
-  form: {
-    gap: Spacing.md,
-  },
+  subtitle: { fontSize: FontSizes.md },
+  form: { gap: Spacing.md },
   sectionLabel: {
     fontSize: FontSizes.md,
     fontWeight: '700',
-    color: Colors.text,
     textAlign: 'right',
   },
   roleRow: {
@@ -259,65 +213,42 @@ const styles = StyleSheet.create({
   },
   roleCard: {
     flex: 1,
-    backgroundColor: Colors.neutral[50],
     borderWidth: 2,
-    borderColor: Colors.border,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  roleCardActive: {
-    backgroundColor: Colors.primary[50],
-    borderColor: Colors.primary[500],
-    borderWidth: 2.5,
-  },
   roleIconCircle: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  roleIconCircleActive: {
-    backgroundColor: Colors.primary[600],
   },
   roleName: {
     fontSize: FontSizes.lg,
     fontWeight: '700',
-    color: Colors.text,
-  },
-  roleNameActive: {
-    color: Colors.primary[700],
   },
   roleDesc: {
     fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
   },
-  roleDescActive: {
-    color: Colors.primary[600],
-  },
   errorBox: {
-    backgroundColor: Colors.error[50],
     borderWidth: 1,
-    borderColor: Colors.error[400],
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
   },
   errorText: {
-    color: Colors.error[600],
     fontSize: FontSizes.sm,
     textAlign: 'right',
+    fontWeight: '600',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.neutral[50],
     borderWidth: 1.5,
-    borderColor: Colors.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 4,
@@ -326,27 +257,22 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: FontSizes.md,
-    color: Colors.text,
     paddingVertical: Spacing.md,
     textAlign: 'right',
   },
   submitBtn: {
-    backgroundColor: Colors.primary[600],
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md + 2,
     alignItems: 'center',
     marginTop: Spacing.sm,
-    shadowColor: Colors.primary[600],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
-  btnDisabled: {
-    opacity: 0.6,
-  },
+  btnDisabled: { opacity: 0.6 },
   submitBtnText: {
-    color: Colors.white,
+    color: '#000',
     fontSize: FontSizes.lg,
     fontWeight: '700',
   },
@@ -356,13 +282,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.lg,
   },
-  footerText: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
-  },
-  linkText: {
-    fontSize: FontSizes.md,
-    color: Colors.primary[600],
-    fontWeight: '700',
-  },
+  footerText: { fontSize: FontSizes.md },
+  linkText: { fontSize: FontSizes.md, fontWeight: '700' },
 });

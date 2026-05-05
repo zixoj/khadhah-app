@@ -294,16 +294,15 @@ export default function PrivacySecurityScreen() {
 
         <TouchableOpacity
           style={[styles.saveBtn, {
-            backgroundColor: isDark ? 'transparent' : C.primary,
-            borderColor: C.primary, borderWidth: isDark ? 1.5 : 0,
+            backgroundColor: C.primary,
           }, saving && styles.btnDisabled]}
           onPress={savePrivacy}
           disabled={saving}
           activeOpacity={0.8}
         >
           {saving
-            ? <ActivityIndicator color={isDark ? C.primary : '#fff'} />
-            : <Text style={[styles.saveBtnText, { color: isDark ? C.primary : '#fff' }]}>حفظ إعدادات الخصوصية</Text>
+            ? <ActivityIndicator color="#000" />
+            : <Text style={[styles.saveBtnText, { color: '#000' }]}>حفظ إعدادات الخصوصية</Text>
           }
         </TouchableOpacity>
 
@@ -354,7 +353,7 @@ export default function PrivacySecurityScreen() {
           borderColor: isDark ? `${C.primary}30` : `${C.primary}25`,
         }]}>
           <Shield size={18} color={C.primary} />
-          <Text style={[styles.infoText, { color: isDark ? C.textSecondary : C.primary }]}>
+          <Text style={[styles.infoText, { color: C.textSecondary }]}>
             نقوم بحماية بياناتك وفق أعلى معايير الأمان. إذا لاحظت أي نشاط مشبوه يرجى التواصل معنا فوراً.
           </Text>
         </View>
@@ -363,7 +362,7 @@ export default function PrivacySecurityScreen() {
       {/* Modal: تغيير كلمة المرور */}
       <Modal visible={showPasswordModal} transparent animationType="slide" onRequestClose={() => setShowPasswordModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { backgroundColor: C.navBar }]}>
+          <View style={[styles.modalSheet, { backgroundColor: isDark ? '#111714' : '#FFFFFF' }]}>
             <View style={[styles.modalHandle, { backgroundColor: isDark ? C.border : '#CBD5E1' }]} />
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: C.text }]}>تغيير كلمة المرور</Text>
@@ -409,16 +408,15 @@ export default function PrivacySecurityScreen() {
             />
             <TouchableOpacity
               style={[styles.modalBtn, {
-                backgroundColor: isDark ? 'transparent' : C.primary,
-                borderColor: C.primary, borderWidth: isDark ? 1.5 : 0,
+                backgroundColor: C.primary,
               }, passwordSaving && styles.btnDisabled]}
               onPress={changePassword}
               disabled={passwordSaving}
               activeOpacity={0.8}
             >
               {passwordSaving
-                ? <ActivityIndicator color={isDark ? C.primary : '#fff'} />
-                : <Text style={[styles.modalBtnText, { color: isDark ? C.primary : '#fff' }]}>تغيير كلمة المرور</Text>
+                ? <ActivityIndicator color="#000" />
+                : <Text style={[styles.modalBtnText, { color: '#000' }]}>تغيير كلمة المرور</Text>
               }
             </TouchableOpacity>
           </View>
@@ -428,7 +426,7 @@ export default function PrivacySecurityScreen() {
       {/* Modal: المستخدمون المحظورون */}
       <Modal visible={showBlockedModal} transparent animationType="slide" onRequestClose={() => setShowBlockedModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, styles.modalSheetTall, { backgroundColor: C.navBar }]}>
+          <View style={[styles.modalSheet, styles.modalSheetTall, { backgroundColor: isDark ? '#111714' : '#FFFFFF' }]}>
             <View style={[styles.modalHandle, { backgroundColor: isDark ? C.border : '#CBD5E1' }]} />
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: C.text }]}>المستخدمون المحظورون</Text>
@@ -473,7 +471,7 @@ export default function PrivacySecurityScreen() {
       {/* Modal: حذف الحساب */}
       <Modal visible={showDeleteModal} transparent animationType="slide" onRequestClose={() => setShowDeleteModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, { backgroundColor: C.navBar }]}>
+          <View style={[styles.modalSheet, { backgroundColor: isDark ? '#111714' : '#FFFFFF' }]}>
             <View style={[styles.modalHandle, { backgroundColor: isDark ? C.border : '#CBD5E1' }]} />
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: C.error }]}>حذف الحساب</Text>
@@ -540,7 +538,7 @@ function ToggleRow({
         <Text style={[styles.toggleLabel, { color: C.text }]}>{label}</Text>
         <Text style={[styles.toggleDesc, { color: C.textSecondary }]}>{description}</Text>
       </View>
-      <View style={[styles.iconBox, { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}>{icon}</View>
+      <View style={[styles.iconBox, { backgroundColor: isDark ? '#1E2A24' : '#F4F7FA' }]}>{icon}</View>
     </View>
   );
 }
@@ -559,7 +557,7 @@ function ActionRow({
     <TouchableOpacity style={styles.actionRow} onPress={onPress} activeOpacity={0.6}>
       <ChevronLeft size={18} color={C.textMuted} />
       <Text style={[styles.actionLabel, { color: danger ? C.error : C.text }]}>{label}</Text>
-      <View style={[styles.iconBox, { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}>{icon}</View>
+      <View style={[styles.iconBox, { backgroundColor: isDark ? '#1E2A24' : '#F4F7FA' }]}>{icon}</View>
     </TouchableOpacity>
   );
 }

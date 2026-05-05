@@ -9,12 +9,14 @@ import {
 } from 'react-native';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { useTheme } from '@/lib/ThemeContext';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import { Package, MapPin, Check, Clock, Truck } from 'lucide-react-native';
 import type { DeliveryRequest } from '@/types/database';
 
 export default function DeliveriesScreen() {
   const { profile } = useAuth();
+  const { colors: C, isDark } = useTheme();
   const [requests, setRequests] = useState<DeliveryRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'available' | 'my_deliveries'>('available');
@@ -76,69 +78,74 @@ export default function DeliveriesScreen() {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case 'pending': return Colors.accent[500];
-      case 'accepted': return Colors.primary[500];
-      case 'in_progress': return Colors.primary[600];
-      case 'delivered': return Colors.primary[700];
-      case 'cancelled': return Colors.error[500];
-      default: return Colors.neutral[500];
+      case 'pending': return isDark ? '#F59E0B' : '#D97706';
+      case 'accepted': return C.primary;
+      case 'in_progress': return C.primaryBright ?? C.primary;
+      case 'delivered': return isDark ? '#00A844' : '#166534';
+      case 'cancelled': return C.error;
+      default: return C.textSecondary;
     }
   };
 
+  const cardBg = isDark ? '#111714' : '#FFFFFF';
+  const cardBorder = isDark ? 'rgba(255,255,255,0.10)' : '#E5E7EB';
+  const filterInactiveBg = isDark ? '#1A2020' : '#FFFFFF';
+  const filterInactiveBorder = isDark ? 'rgba(255,255,255,0.18)' : '#D1D5DB';
+
   const renderItem = ({ item }: { item: any }) => (
-    <View style={styles.requestCard}>
+    <View style={[styles.requestCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
       <View style={styles.cardHeader}>
-        <View style={[styles.statusBadge, { backgroundColor: statusColor(item.status) + '18' }]}>
+        <View style={[styles.statusBadge, { backgroundColor: statusColor(item.status) + '20' }]}>
           <Text style={[styles.statusText, { color: statusColor(item.status) }]}>
             {statusLabel(item.status)}
           </Text>
         </View>
-        <Text style={styles.postTitle} numberOfLines={1}>{item.posts?.title}</Text>
+        <Text style={[styles.postTitle, { color: C.text }]} numberOfLines={1}>{item.posts?.title}</Text>
       </View>
 
       <View style={styles.cardBody}>
         <View style={styles.addressRow}>
-          <MapPin size={14} color={Colors.primary[500]} />
-          <Text style={styles.addressLabel}>من:</Text>
-          <Text style={styles.addressValue}>{item.pickup_address || item.posts?.city || 'غير محدد'}</Text>
+          <MapPin size={14} color={C.primary} />
+          <Text style={[styles.addressLabel, { color: C.textSecondary }]}>من:</Text>
+          <Text style={[styles.addressValue, { color: C.text }]}>{item.pickup_address || item.posts?.city || 'غير محدد'}</Text>
         </View>
         <View style={styles.addressRow}>
-          <MapPin size={14} color={Colors.error[400]} />
-          <Text style={styles.addressLabel}>إلى:</Text>
-          <Text style={styles.addressValue}>{item.dropoff_address || 'غير محدد'}</Text>
+          <MapPin size={14} color={C.error} />
+          <Text style={[styles.addressLabel, { color: C.textSecondary }]}>إلى:</Text>
+          <Text style={[styles.addressValue, { color: C.text }]}>{item.dropoff_address || 'غير محدد'}</Text>
         </View>
       </View>
 
-      <View style={styles.cardFooter}>
-        <Text style={styles.requesterName}>العميل: {item.profiles?.full_name}</Text>
+      <View style={[styles.cardFooter, { borderTopColor: cardBorder }]}>
+        <Text style={[styles.requesterName, { color: C.textSecondary }]}>العميل: {item.profiles?.full_name}</Text>
         {item.status === 'pending' && activeFilter === 'available' && (
           <TouchableOpacity
-            style={styles.acceptBtn}
+            style={[styles.acceptBtn, { backgroundColor: C.primary }]}
             onPress={() => acceptRequest(item.id)}
             activeOpacity={0.7}
           >
-            <Check size={16} color={Colors.white} />
-            <Text style={styles.acceptBtnText}>قبول</Text>
+            <Check size={16} color="#000" />
+            <Text style={styles.actionBtnText}>قبول</Text>
           </TouchableOpacity>
         )}
         {item.status === 'accepted' && activeFilter === 'my_deliveries' && (
           <TouchableOpacity
-            style={styles.progressBtn}
+            style={[styles.acceptBtn, { backgroundColor: C.primary }]}
             onPress={() => updateStatus(item.id, 'in_progress')}
             activeOpacity={0.7}
           >
-            <Truck size={14} color={Colors.white} />
-            <Text style={styles.progressBtnText}>بدء التوصيل</Text>
+            <Truck size={14} color="#000" />
+            <Text style={styles.actionBtnText}>بدء التوصيل</Text>
           </TouchableOpacity>
         )}
         {item.status === 'in_progress' && activeFilter === 'my_deliveries' && (
           <TouchableOpacity
-            style={styles.deliveredBtn}
+            style={[styles.acceptBtn, { backgroundColor: isDark ? '#00A844' : '#166534' }]}
             onPress={() => updateStatus(item.id, 'delivered')}
             activeOpacity={0.7}
           >
-            <Check size={16} color={Colors.white} />
-            <Text style={styles.progressBtnText}>تم التسليم</Text>
+            <Check size={16} color="#FFF" />
+            <Text style={[styles.actionBtnText, { color: '#FFF' }]}>تم التسليم</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -146,42 +153,52 @@ export default function DeliveriesScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={[styles.header, { backgroundColor: C.background, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5E7EB' }]}>
         <View style={styles.headerContent}>
-          <Truck size={24} color={Colors.white} />
-          <Text style={styles.headerTitle}>التوصيلات</Text>
+          <Truck size={24} color={C.primary} />
+          <Text style={[styles.headerTitle, { color: C.text }]}>التوصيلات</Text>
         </View>
-        <Text style={styles.headerSub}>إدارة طلبات التوصيل</Text>
+        <Text style={[styles.headerSub, { color: C.textSecondary }]}>إدارة طلبات التوصيل</Text>
       </View>
 
-      <View style={styles.filterRow}>
+      <View style={[styles.filterRow, { backgroundColor: C.background }]}>
         <TouchableOpacity
-          style={[styles.filterBtn, activeFilter === 'available' && styles.filterBtnActive]}
+          style={[
+            styles.filterBtn,
+            activeFilter === 'available'
+              ? { backgroundColor: C.primary, borderColor: C.primary }
+              : { backgroundColor: filterInactiveBg, borderColor: filterInactiveBorder },
+          ]}
           onPress={() => setActiveFilter('available')}
           activeOpacity={0.7}
         >
-          <Clock size={16} color={activeFilter === 'available' ? Colors.white : Colors.primary[600]} />
-          <Text style={[styles.filterText, activeFilter === 'available' && styles.filterTextActive]}>متاح</Text>
+          <Clock size={16} color={activeFilter === 'available' ? '#000' : C.text} />
+          <Text style={[styles.filterText, { color: activeFilter === 'available' ? '#000' : C.text }]}>متاح</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterBtn, activeFilter === 'my_deliveries' && styles.filterBtnActive]}
+          style={[
+            styles.filterBtn,
+            activeFilter === 'my_deliveries'
+              ? { backgroundColor: C.primary, borderColor: C.primary }
+              : { backgroundColor: filterInactiveBg, borderColor: filterInactiveBorder },
+          ]}
           onPress={() => setActiveFilter('my_deliveries')}
           activeOpacity={0.7}
         >
-          <Package size={16} color={activeFilter === 'my_deliveries' ? Colors.white : Colors.primary[600]} />
-          <Text style={[styles.filterText, activeFilter === 'my_deliveries' && styles.filterTextActive]}>توصيلاتي</Text>
+          <Package size={16} color={activeFilter === 'my_deliveries' ? '#000' : C.text} />
+          <Text style={[styles.filterText, { color: activeFilter === 'my_deliveries' ? '#000' : C.text }]}>توصيلاتي</Text>
         </TouchableOpacity>
       </View>
 
       {loading ? (
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color={Colors.primary[600]} />
+          <ActivityIndicator size="large" color={C.primary} />
         </View>
       ) : requests.length === 0 ? (
         <View style={styles.centerContent}>
-          <Package size={48} color={Colors.neutral[300]} />
-          <Text style={styles.emptyText}>لا توجد طلبات توصيل</Text>
+          <Package size={48} color={C.textMuted} />
+          <Text style={[styles.emptyText, { color: C.textSecondary }]}>لا توجد طلبات توصيل</Text>
         </View>
       ) : (
         <FlatList
@@ -197,17 +214,12 @@ export default function DeliveriesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+  container: { flex: 1 },
   header: {
-    backgroundColor: Colors.primary[700],
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.lg,
-    borderBottomLeftRadius: BorderRadius.xl,
-    borderBottomRightRadius: BorderRadius.xl,
+    borderBottomWidth: 1,
   },
   headerContent: {
     flexDirection: 'row',
@@ -215,17 +227,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     justifyContent: 'flex-end',
   },
-  headerTitle: {
-    fontSize: FontSizes.xxl,
-    fontWeight: '700',
-    color: Colors.white,
-  },
-  headerSub: {
-    fontSize: FontSizes.sm,
-    color: Colors.primary[200],
-    textAlign: 'right',
-    marginTop: Spacing.xs,
-  },
+  headerTitle: { fontSize: FontSizes.xxl, fontWeight: '700' },
+  headerSub: { fontSize: FontSizes.sm, textAlign: 'right', marginTop: Spacing.xs },
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.lg,
@@ -241,49 +244,26 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
     borderWidth: 1.5,
-    borderColor: Colors.primary[200],
-    backgroundColor: Colors.white,
   },
-  filterBtnActive: {
-    backgroundColor: Colors.primary[600],
-    borderColor: Colors.primary[600],
-  },
-  filterText: {
-    fontSize: FontSizes.md,
-    fontWeight: '600',
-    color: Colors.primary[600],
-  },
-  filterTextActive: {
-    color: Colors.white,
-  },
+  filterText: { fontSize: FontSizes.md, fontWeight: '600' },
   centerContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     gap: Spacing.md,
   },
-  emptyText: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
-  },
+  emptyText: { fontSize: FontSizes.md },
   listContent: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.xl,
   },
   requestCard: {
-    backgroundColor: Colors.white,
     borderWidth: 1,
-    borderColor: Colors.border,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.md,
     gap: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -293,7 +273,6 @@ const styles = StyleSheet.create({
   postTitle: {
     fontSize: FontSizes.lg,
     fontWeight: '600',
-    color: Colors.text,
     flex: 1,
     textAlign: 'right',
     marginRight: Spacing.sm,
@@ -303,77 +282,30 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: BorderRadius.full,
   },
-  statusText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-  },
-  cardBody: {
-    gap: Spacing.xs,
-    paddingRight: Spacing.sm,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  addressLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  addressValue: {
-    fontSize: FontSizes.sm,
-    color: Colors.text,
-    flex: 1,
-    textAlign: 'right',
-  },
+  statusText: { fontSize: FontSizes.xs, fontWeight: '700' },
+  cardBody: { gap: Spacing.xs, paddingRight: Spacing.sm },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  addressLabel: { fontSize: FontSizes.sm, fontWeight: '600' },
+  addressValue: { fontSize: FontSizes.sm, flex: 1, textAlign: 'right' },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
     paddingTop: Spacing.sm,
   },
-  requesterName: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-  },
+  requesterName: { fontSize: FontSizes.sm },
   acceptBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.primary[600],
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
   },
-  acceptBtnText: {
-    color: Colors.white,
+  actionBtnText: {
+    color: '#000',
     fontSize: FontSizes.sm,
     fontWeight: '700',
-  },
-  progressBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primary[500],
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
-  },
-  progressBtnText: {
-    color: Colors.white,
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
-  },
-  deliveredBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.primary[700],
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.md,
   },
 });

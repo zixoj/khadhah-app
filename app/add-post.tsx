@@ -318,9 +318,7 @@ export default function AddPostScreen() {
         {/* زر النشر */}
         <TouchableOpacity
           style={[styles.submitBtn, {
-            backgroundColor: isDark ? `${C.primary}18` : C.primary,
-            borderColor: isDark ? C.primary : 'transparent',
-            borderWidth: isDark ? 1 : 0,
+            backgroundColor: C.primary,
             shadowColor: C.primary,
             opacity: (loading || uploading) ? 0.6 : 1,
           }]}
@@ -330,13 +328,13 @@ export default function AddPostScreen() {
         >
           {loading || uploading ? (
             <View style={styles.loadingRow}>
-              <ActivityIndicator color={isDark ? C.primary : '#fff'} />
-              <Text style={[styles.submitBtnText, { color: isDark ? C.primary : '#fff' }]}>
+              <ActivityIndicator color="#000" />
+              <Text style={[styles.submitBtnText, { color: '#000' }]}>
                 {uploading ? 'جاري رفع الصورة...' : 'جاري النشر...'}
               </Text>
             </View>
           ) : (
-            <Text style={[styles.submitBtnText, { color: isDark ? C.primary : '#fff' }]}>نشر الإعلان</Text>
+            <Text style={[styles.submitBtnText, { color: '#000' }]}>نشر الإعلان</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

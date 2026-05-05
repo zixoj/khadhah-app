@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import { useAuth } from '@/lib/auth';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { useTheme } from '@/lib/ThemeContext';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import { Mail, Lock, LogIn } from 'lucide-react-native';
 
 export default function LoginScreen() {
@@ -20,6 +21,7 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
+  const { colors: C, isDark } = useTheme();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -33,36 +35,40 @@ export default function LoginScreen() {
     setLoading(false);
   };
 
+  const inputBg = isDark ? '#1A2020' : '#F5F5F5';
+  const inputBorder = isDark ? 'rgba(255,255,255,0.18)' : '#D1D5DB';
+  const placeholderColor = isDark ? '#9CA3AF' : '#6B7280';
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: C.background }]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.logoSection}>
-          <View style={styles.logoCircle}>
+          <View style={[styles.logoCircle, { backgroundColor: isDark ? 'rgba(0,200,83,0.12)' : '#F0FDF4' }]}>
             <Text style={styles.logoEmoji}>📦</Text>
           </View>
-          <Text style={styles.appName}>خذه</Text>
-          <Text style={styles.tagline}>بدّل أو اعطِ، بكل سهولة</Text>
+          <Text style={[styles.appName, { color: C.primary }]}>خذه</Text>
+          <Text style={[styles.tagline, { color: C.textSecondary }]}>بدّل أو اعطِ، بكل سهولة</Text>
         </View>
 
         <View style={styles.form}>
           {error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={[styles.errorBox, { backgroundColor: isDark ? 'rgba(255,59,48,0.12)' : '#FFF5F5', borderColor: isDark ? 'rgba(255,59,48,0.30)' : '#FECACA' }]}>
+              <Text style={[styles.errorText, { color: isDark ? '#FF6B6B' : '#CC2222' }]}>{error}</Text>
             </View>
           )}
 
-          <View style={styles.inputWrapper}>
-            <Mail size={20} color={Colors.primary[500]} />
+          <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+            <Mail size={20} color={C.primary} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: C.text }]}
               placeholder="البريد الإلكتروني"
-              placeholderTextColor={Colors.neutral[400]}
+              placeholderTextColor={placeholderColor}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -71,12 +77,12 @@ export default function LoginScreen() {
             />
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Lock size={20} color={Colors.primary[500]} />
+          <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+            <Lock size={20} color={C.primary} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: C.text }]}
               placeholder="كلمة المرور"
-              placeholderTextColor={Colors.neutral[400]}
+              placeholderTextColor={placeholderColor}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -85,22 +91,22 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.loginBtn, loading && styles.btnDisabled]}
+            style={[styles.loginBtn, { backgroundColor: C.primary, shadowColor: C.primary }, loading && styles.btnDisabled]}
             onPress={handleLogin}
             disabled={loading}
             activeOpacity={0.8}
           >
-            <LogIn size={20} color={Colors.white} />
+            <LogIn size={20} color="#000" />
             <Text style={styles.loginBtnText}>
               {loading ? 'جاري الدخول...' : 'تسجيل الدخول'}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>ليس لديك حساب؟ </Text>
+            <Text style={[styles.footerText, { color: C.textSecondary }]}>ليس لديك حساب؟ </Text>
             <Link href="/register" asChild>
               <TouchableOpacity>
-                <Text style={styles.linkText}>إنشاء حساب جديد</Text>
+                <Text style={[styles.linkText, { color: C.primary }]}>إنشاء حساب جديد</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -111,10 +117,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.white,
-  },
+  container: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -128,45 +131,32 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
-  logoEmoji: {
-    fontSize: 36,
-  },
+  logoEmoji: { fontSize: 36 },
   appName: {
     fontSize: FontSizes.xxxl,
     fontWeight: '700',
-    color: Colors.primary[700],
     marginBottom: Spacing.xs,
   },
-  tagline: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
-  },
-  form: {
-    gap: Spacing.md,
-  },
+  tagline: { fontSize: FontSizes.md },
+  form: { gap: Spacing.md },
   errorBox: {
-    backgroundColor: Colors.error[50],
     borderWidth: 1,
-    borderColor: Colors.error[400],
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
   },
   errorText: {
-    color: Colors.error[600],
     fontSize: FontSizes.sm,
     textAlign: 'right',
+    fontWeight: '600',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.neutral[50],
     borderWidth: 1.5,
-    borderColor: Colors.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 4,
@@ -175,12 +165,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: FontSizes.md,
-    color: Colors.text,
     paddingVertical: Spacing.md,
     textAlign: 'right',
   },
   loginBtn: {
-    backgroundColor: Colors.primary[600],
     borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md + 2,
     flexDirection: 'row',
@@ -188,17 +176,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     marginTop: Spacing.sm,
-    shadowColor: Colors.primary[600],
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
     elevation: 4,
   },
-  btnDisabled: {
-    opacity: 0.6,
-  },
+  btnDisabled: { opacity: 0.6 },
   loginBtnText: {
-    color: Colors.white,
+    color: '#000',
     fontSize: FontSizes.lg,
     fontWeight: '700',
   },
@@ -208,13 +193,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.lg,
   },
-  footerText: {
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
-  },
-  linkText: {
-    fontSize: FontSizes.md,
-    color: Colors.primary[600],
-    fontWeight: '700',
-  },
+  footerText: { fontSize: FontSizes.md },
+  linkText: { fontSize: FontSizes.md, fontWeight: '700' },
 });
