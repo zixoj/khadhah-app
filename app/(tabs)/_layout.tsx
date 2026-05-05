@@ -3,10 +3,10 @@ import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, ArrowLeftRight, Gift, Truck, MoreHorizontal } from 'lucide-react-native';
+import { Home, ArrowLeftRight, Gift, User, MoreHorizontal } from 'lucide-react-native';
 
 export default function TabLayout() {
-  const { session, profile, loading } = useAuth();
+  const { session, loading } = useAuth();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -22,7 +22,6 @@ export default function TabLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  const isAgent = profile?.role === 'delivery_agent';
   const bottomPad = Platform.OS !== 'web' ? insets.bottom : 10;
   const tabBarHeight = 64 + bottomPad;
 
@@ -62,42 +61,49 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'الرئيسية',
-          tabBarIcon: ({ size, color }) => <Home size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
+          tabBarIcon: ({ size, color }) => (
+            <Home size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />
+          ),
         }}
       />
       <Tabs.Screen
         name="exchange"
         options={{
           title: 'بدّل',
-          tabBarIcon: ({ size, color }) => <ArrowLeftRight size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
+          tabBarIcon: ({ size, color }) => (
+            <ArrowLeftRight size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />
+          ),
         }}
       />
       <Tabs.Screen
         name="free"
         options={{
           title: 'خذه',
-          tabBarIcon: ({ size, color }) => <Gift size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
+          tabBarIcon: ({ size, color }) => (
+            <Gift size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />
+          ),
         }}
       />
-      {isAgent && (
-        <Tabs.Screen
-          name="deliveries"
-          options={{
-            title: 'التوصيل',
-            tabBarIcon: ({ size, color }) => <Truck size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
-          }}
-        />
-      )}
-      {/* Hide profile from tab bar — accessible via المزيد sheet */}
+      <Tabs.Screen
+        name="deliveries"
+        options={{ href: null }}
+      />
       <Tabs.Screen
         name="profile"
-        options={{ href: null }}
+        options={{
+          title: 'حسابي',
+          tabBarIcon: ({ size, color }) => (
+            <User size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="more"
         options={{
           title: 'المزيد',
-          tabBarIcon: ({ size, color }) => <MoreHorizontal size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
+          tabBarIcon: ({ size, color }) => (
+            <MoreHorizontal size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />
+          ),
         }}
       />
     </Tabs>

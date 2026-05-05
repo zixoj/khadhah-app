@@ -7,41 +7,51 @@ import {
   Modal,
   Animated,
   Pressable,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
-import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { Spacing, FontSizes } from '@/lib/theme';
 import {
   MessageSquare,
   Heart,
   Settings,
   Shield,
-  User,
-  Star,
-  Activity,
-  Bell,
-  ChevronLeft,
   X,
-  LogOut,
 } from 'lucide-react-native';
 
-interface SheetItem {
-  icon: React.ReactNode;
-  label: string;
-  sublabel?: string;
-  onPress: () => void;
-  danger?: boolean;
-}
+const SHEET_ITEMS = [
+  {
+    icon: MessageSquare,
+    iconColor: '#0A84FF',
+    label: 'محادثاتي',
+    path: '/conversations',
+  },
+  {
+    icon: Heart,
+    iconColor: '#EF4444',
+    label: 'المفضلة',
+    path: '/favorites',
+  },
+  {
+    icon: Settings,
+    iconColor: '#00C853',
+    label: 'الإعدادات',
+    path: '/settings/edit-profile',
+  },
+  {
+    icon: Shield,
+    iconColor: '#00C853',
+    label: 'الخصوصية والأمان',
+    path: '/settings/privacy-security',
+  },
+];
 
 export default function MoreScreen() {
   const router = useRouter();
-  const { profile, signOut } = useAuth();
   const { colors: C, isDark } = useTheme();
   const [sheetVisible, setSheetVisible] = useState(false);
-  const slideAnim = useRef(new Animated.Value(400)).current;
+  const slideAnim = useRef(new Animated.Value(500)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const openSheet = () => {
@@ -50,12 +60,12 @@ export default function MoreScreen() {
       Animated.spring(slideAnim, {
         toValue: 0,
         useNativeDriver: true,
-        tension: 65,
-        friction: 11,
+        tension: 70,
+        friction: 12,
       }),
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 220,
+        duration: 200,
         useNativeDriver: true,
       }),
     ]).start();
@@ -64,18 +74,18 @@ export default function MoreScreen() {
   const closeSheet = (callback?: () => void) => {
     Animated.parallel([
       Animated.timing(slideAnim, {
-        toValue: 400,
-        duration: 260,
+        toValue: 500,
+        duration: 240,
         useNativeDriver: true,
       }),
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 220,
+        duration: 200,
         useNativeDriver: true,
       }),
     ]).start(() => {
       setSheetVisible(false);
-      slideAnim.setValue(400);
+      slideAnim.setValue(500);
       fadeAnim.setValue(0);
       callback?.();
     });
@@ -85,14 +95,6 @@ export default function MoreScreen() {
     closeSheet(() => router.push(path as any));
   };
 
-  const handleSignOut = () => {
-    closeSheet(async () => {
-      await signOut();
-      router.replace('/(auth)/login');
-    });
-  };
-
-  // Auto-open sheet whenever this tab gains focus
   useFocusEffect(
     useCallback(() => {
       openSheet();
@@ -100,64 +102,22 @@ export default function MoreScreen() {
   );
 
   const sheetBg = isDark ? '#111714' : '#FFFFFF';
-  const handleBg = isDark ? 'rgba(255,255,255,0.15)' : '#D1D5DB';
-  const dividerBg = isDark ? 'rgba(255,255,255,0.07)' : '#F0F0F0';
-  const iconBg = isDark ? '#1A2020' : '#F0FDF4';
-
-  const items: SheetItem[] = [
-    {
-      icon: <User size={20} color={C.primary} />,
-      label: 'حسابي',
-      sublabel: profile?.full_name || '',
-      onPress: () => navigate('/profile' as any),
-    },
-    {
-      icon: <MessageSquare size={20} color={C.exchange} />,
-      label: 'محادثاتي',
-      onPress: () => navigate('/conversations'),
-    },
-    {
-      icon: <Heart size={20} color="#EF4444" />,
-      label: 'المفضلة',
-      onPress: () => navigate('/favorites'),
-    },
-    {
-      icon: <Bell size={20} color={C.primary} />,
-      label: 'إعدادات الإشعارات',
-      onPress: () => navigate('/notifications-settings'),
-    },
-    {
-      icon: <Settings size={20} color={C.primary} />,
-      label: 'الإعدادات',
-      onPress: () => navigate('/settings/edit-profile'),
-    },
-    {
-      icon: <Shield size={20} color={C.primary} />,
-      label: 'الخصوصية والأمان',
-      onPress: () => navigate('/settings/privacy-security'),
-    },
-    {
-      icon: <Star size={20} color="#F59E0B" />,
-      label: 'تقييماتي',
-      onPress: () => navigate('/my-ratings'),
-    },
-    {
-      icon: <Activity size={20} color={C.primary} />,
-      label: 'سجل النشاط',
-      onPress: () => navigate('/activity-log'),
-    },
-  ];
+  const handleBg = isDark ? 'rgba(255,255,255,0.18)' : '#D1D5DB';
+  const dividerBg = isDark ? 'rgba(255,255,255,0.08)' : '#F0F0F0';
+  const iconBg = isDark ? '#1A2020' : '#F4F9F6';
+  const itemBg = isDark ? '#0D1410' : '#F8FAFB';
+  const itemBorder = isDark ? 'rgba(255,255,255,0.07)' : '#E8E8E8';
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      {/* Background page — tapping it reopens sheet */}
+      {/* Tap-to-reopen hint shown under the sheet */}
       <TouchableOpacity style={styles.bgTap} onPress={openSheet} activeOpacity={1}>
-        <View style={[styles.dotsCircle, { backgroundColor: isDark ? '#1A2020' : '#F0FDF4', borderColor: isDark ? 'rgba(0,200,83,0.20)' : 'rgba(0,168,68,0.20)', borderWidth: 1 }]}>
+        <View style={[styles.dotsWrap, { backgroundColor: iconBg, borderColor: isDark ? 'rgba(0,200,83,0.20)' : 'rgba(0,168,68,0.18)', borderWidth: 1 }]}>
           <View style={[styles.dot, { backgroundColor: C.primary }]} />
           <View style={[styles.dot, { backgroundColor: C.primary }]} />
           <View style={[styles.dot, { backgroundColor: C.primary }]} />
         </View>
-        <Text style={[styles.tapHint, { color: C.textSecondary }]}>اضغط لفتح القائمة</Text>
+        <Text style={[styles.hint, { color: C.textSecondary }]}>اضغط لفتح القائمة</Text>
       </TouchableOpacity>
 
       <Modal
@@ -167,82 +127,55 @@ export default function MoreScreen() {
         statusBarTranslucent
         onRequestClose={() => closeSheet()}
       >
-        {/* Overlay */}
+        {/* Dim overlay */}
         <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
-          <Pressable style={styles.overlayPress} onPress={() => closeSheet()} />
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => closeSheet()} />
         </Animated.View>
 
-        {/* Sheet */}
+        {/* Bottom sheet */}
         <Animated.View
-          style={[
-            styles.sheet,
-            { backgroundColor: sheetBg, transform: [{ translateY: slideAnim }] },
-          ]}
+          style={[styles.sheet, { backgroundColor: sheetBg, transform: [{ translateY: slideAnim }] }]}
         >
-          {/* Handle */}
+          {/* Drag handle */}
           <View style={[styles.handle, { backgroundColor: handleBg }]} />
 
           {/* Header */}
-          <View style={[styles.sheetHeader, { borderBottomColor: dividerBg }]}>
+          <View style={[styles.header, { borderBottomColor: dividerBg }]}>
             <TouchableOpacity
               onPress={() => closeSheet()}
-              style={[styles.closeBtn, { backgroundColor: isDark ? '#1A2020' : '#F5F5F5' }]}
-              hitSlop={8}
+              style={[styles.closeBtn, { backgroundColor: isDark ? '#1A2020' : '#F0F0F0' }]}
+              hitSlop={10}
             >
-              <X size={16} color={C.text} />
+              <X size={15} color={C.text} strokeWidth={2.5} />
             </TouchableOpacity>
-            <Text style={[styles.sheetTitle, { color: C.text }]}>المزيد</Text>
+            <Text style={[styles.title, { color: C.text }]}>المزيد</Text>
             <View style={{ width: 32 }} />
           </View>
 
-          {/* Avatar row */}
-          {profile && (
-            <TouchableOpacity
-              style={[styles.profileRow, { backgroundColor: isDark ? '#0D1410' : '#F0FDF4', borderColor: isDark ? 'rgba(0,200,83,0.15)' : '#D1FAE5' }]}
-              onPress={() => navigate('/profile' as any)}
-              activeOpacity={0.8}
-            >
-              <ChevronLeft size={18} color={C.textSecondary} />
-              <View style={styles.profileInfo}>
-                <Text style={[styles.profileName, { color: C.text }]} numberOfLines={1}>{profile.full_name}</Text>
-                <Text style={[styles.profileSub, { color: C.textSecondary }]}>عرض الملف الشخصي</Text>
-              </View>
-              {profile.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={[styles.avatar, { borderColor: C.primary }]} />
-              ) : (
-                <View style={[styles.avatarPlaceholder, { backgroundColor: iconBg, borderColor: C.primary }]}>
-                  <User size={22} color={C.primary} />
+          {/* Items */}
+          <View style={styles.list}>
+            {SHEET_ITEMS.map((item, index) => {
+              const Icon = item.icon;
+              const isLast = index === SHEET_ITEMS.length - 1;
+              return (
+                <View key={item.path}>
+                  <TouchableOpacity
+                    style={[styles.row, { backgroundColor: itemBg, borderColor: itemBorder }]}
+                    onPress={() => navigate(item.path)}
+                    activeOpacity={0.72}
+                  >
+                    <View style={styles.rowLeft}>
+                      <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
+                        <Icon size={20} color={item.iconColor} strokeWidth={2} />
+                      </View>
+                    </View>
+                    <Text style={[styles.rowLabel, { color: C.text }]}>{item.label}</Text>
+                  </TouchableOpacity>
+                  {!isLast && <View style={[styles.divider, { backgroundColor: dividerBg }]} />}
                 </View>
-              )}
-            </TouchableOpacity>
-          )}
-
-          {/* Menu items — two columns grid */}
-          <View style={styles.grid}>
-            {items.slice(1).map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.gridItem, { backgroundColor: isDark ? '#0D1410' : '#F9FAFB', borderColor: isDark ? 'rgba(255,255,255,0.07)' : '#E5E7EB' }]}
-                onPress={item.onPress}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.gridIconWrap, { backgroundColor: iconBg }]}>
-                  {item.icon}
-                </View>
-                <Text style={[styles.gridLabel, { color: C.text }]}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
-
-          {/* Sign out */}
-          <TouchableOpacity
-            style={[styles.signOutBtn, { backgroundColor: isDark ? 'rgba(239,68,68,0.10)' : '#FFF5F5', borderColor: isDark ? 'rgba(239,68,68,0.25)' : '#FECACA' }]}
-            onPress={handleSignOut}
-            activeOpacity={0.8}
-          >
-            <LogOut size={18} color="#EF4444" />
-            <Text style={[styles.signOutText, { color: '#EF4444' }]}>تسجيل الخروج</Text>
-          </TouchableOpacity>
         </Animated.View>
       </Modal>
     </View>
@@ -251,25 +184,24 @@ export default function MoreScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  bgTap: { alignItems: 'center', gap: 12 },
-  dotsCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+
+  bgTap: { alignItems: 'center', gap: 14 },
+  dotsWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 5,
   },
   dot: { width: 6, height: 6, borderRadius: 3 },
-  tapHint: { fontSize: FontSizes.sm },
+  hint: { fontSize: FontSizes.sm },
 
   overlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.65)',
   },
-  overlayPress: { flex: 1 },
 
   sheet: {
     position: 'absolute',
@@ -279,24 +211,25 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: Spacing.lg,
-    paddingBottom: 48,
-    paddingTop: Spacing.sm,
+    paddingBottom: 52,
+    paddingTop: 10,
   },
+
   handle: {
     width: 40,
     height: 4,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 16,
-    marginTop: 4,
+    marginBottom: 18,
   },
-  sheetHeader: {
+
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 14,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   closeBtn: {
     width: 32,
@@ -305,71 +238,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sheetTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '700',
-  },
+  title: { fontSize: FontSizes.lg, fontWeight: '700' },
 
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    borderWidth: 1,
+  list: {
     borderRadius: 18,
-    padding: 14,
-    marginBottom: 16,
-  },
-  profileInfo: { flex: 1, alignItems: 'flex-end', gap: 2 },
-  profileName: { fontSize: FontSizes.md, fontWeight: '700' },
-  profileSub: { fontSize: FontSizes.xs },
-  avatar: { width: 48, height: 48, borderRadius: 24, borderWidth: 2 },
-  avatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
+    overflow: 'hidden',
   },
 
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
-  },
-  gridItem: {
-    width: '47.5%',
+  row: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    gap: 14,
+    borderWidth: 0,
   },
-  gridIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
+  rowLeft: {},
+  iconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  gridLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
+  rowLabel: {
     flex: 1,
+    fontSize: FontSizes.md,
+    fontWeight: '600',
     textAlign: 'right',
   },
 
-  signOutBtn: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 14,
-  },
-  signOutText: { fontSize: FontSizes.md, fontWeight: '700' },
+  divider: { height: 1, marginHorizontal: 16 },
 });
