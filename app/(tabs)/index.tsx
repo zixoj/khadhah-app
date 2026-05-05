@@ -9,9 +9,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
+import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
-import { ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin } from 'lucide-react-native';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin, ChevronLeft } from 'lucide-react-native';
 
 interface RecentListing {
   id: string;
@@ -35,6 +36,7 @@ function timeAgo(dateStr: string): string {
 export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { colors, isDark } = useTheme();
   const [recent, setRecent] = useState<RecentListing[]>([]);
 
   useEffect(() => {
@@ -47,94 +49,159 @@ export default function HomeScreen() {
       .then(({ data }) => { if (data) setRecent(data); });
   }, []);
 
+  const statusLabel: Record<string, string> = {
+    available: 'متاح',
+    reserved: 'محجوز',
+    reserved_temp: 'محجوز مؤقتًا',
+    taken: 'مأخوذ',
+  };
+  const statusColor: Record<string, string> = {
+    available: colors.primary,
+    reserved: colors.exchange,
+    reserved_temp: '#F59E0B',
+    taken: colors.textMuted,
+  };
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 110 }}
+    >
       {/* Hero */}
-      <View style={styles.hero}>
-        <Text style={styles.heroGreeting}>
+      <View style={[styles.hero, {
+        backgroundColor: isDark ? colors.surface : '#0F2318',
+        borderBottomColor: isDark ? colors.cardBorder : 'transparent',
+        borderBottomWidth: isDark ? 1 : 0,
+      }]}>
+        {/* Glow effect */}
+        {isDark && (
+          <View style={styles.heroGlow} pointerEvents="none" />
+        )}
+
+        <Text style={[styles.heroGreeting, { color: isDark ? 'rgba(0,255,135,0.65)' : 'rgba(255,255,255,0.65)' }]}>
           مرحباً {profile?.full_name ? profile.full_name.split(' ')[0] : 'صديقي'} 👋
         </Text>
         <Text style={styles.heroTitle}>لا ترميها…{'\n'}خذها أو بدّلها</Text>
-        <Text style={styles.heroSub}>اعرض أغراضك مجانًا أو بدّلها بسهولة</Text>
+        <Text style={[styles.heroSub, { color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.65)' }]}>
+          اعرض أغراضك مجانًا أو بدّلها بسهولة
+        </Text>
 
         {/* Entry buttons */}
         <View style={styles.entryRow}>
           <TouchableOpacity
-            style={styles.entryBtnFree}
+            style={[styles.entryBtn, {
+              backgroundColor: isDark ? 'rgba(0,255,135,0.08)' : '#059669',
+              borderColor: isDark ? colors.primary : 'transparent',
+              borderWidth: isDark ? 1 : 0,
+            }]}
             onPress={() => router.push('/(tabs)/free')}
             activeOpacity={0.85}
           >
-            <Gift size={26} color={Colors.white} />
-            <Text style={styles.entryBtnLabel}>خذه</Text>
-            <Text style={styles.entryBtnSub}>مجاني</Text>
+            <Gift size={28} color={isDark ? colors.primary : '#fff'} />
+            <Text style={[styles.entryBtnLabel, { color: isDark ? colors.primary : '#fff' }]}>خذه</Text>
+            <Text style={[styles.entryBtnSub, { color: isDark ? 'rgba(0,255,135,0.55)' : 'rgba(255,255,255,0.75)' }]}>مجاني</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.entryBtnExchange}
+            style={[styles.entryBtn, {
+              backgroundColor: isDark ? 'rgba(59,130,246,0.1)' : '#2563EB',
+              borderColor: isDark ? '#3B82F6' : 'transparent',
+              borderWidth: isDark ? 1 : 0,
+            }]}
             onPress={() => router.push('/(tabs)/exchange')}
             activeOpacity={0.85}
           >
-            <ArrowLeftRight size={26} color={Colors.white} />
-            <Text style={styles.entryBtnLabel}>بدّل</Text>
-            <Text style={styles.entryBtnSub}>تبادل</Text>
+            <ArrowLeftRight size={28} color={isDark ? '#3B82F6' : '#fff'} />
+            <Text style={[styles.entryBtnLabel, { color: isDark ? '#3B82F6' : '#fff' }]}>بدّل</Text>
+            <Text style={[styles.entryBtnSub, { color: isDark ? 'rgba(59,130,246,0.55)' : 'rgba(255,255,255,0.75)' }]}>تبادل</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Post CTA */}
       <TouchableOpacity
-        style={styles.postCta}
+        style={[styles.postCta, {
+          backgroundColor: isDark ? 'rgba(0,255,135,0.08)' : colors.primary,
+          borderColor: isDark ? colors.primary : 'transparent',
+          borderWidth: isDark ? 1 : 0,
+          shadowColor: colors.primary,
+        }]}
         onPress={() => router.push('/add-post')}
         activeOpacity={0.85}
       >
-        <Plus size={20} color={Colors.white} />
-        <Text style={styles.postCtaText}>انشر إعلانك الآن — أسرع من دقيقة</Text>
+        <Plus size={22} color={isDark ? colors.primary : '#fff'} />
+        <Text style={[styles.postCtaText, { color: isDark ? colors.primary : '#fff' }]}>
+          + أضف إعلان جديد
+        </Text>
       </TouchableOpacity>
 
       {/* Recent listings */}
       {recent.length > 0 && (
         <View style={styles.recentSection}>
-          <Text style={styles.sectionTitle}>آخر الإعلانات</Text>
+          <View style={styles.sectionHeader}>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/free')} activeOpacity={0.7}>
+              <Text style={[styles.seeAll, { color: colors.primary }]}>عرض الكل</Text>
+            </TouchableOpacity>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>آخر الإعلانات</Text>
+          </View>
+
           <View style={styles.recentGrid}>
             {recent.map((item) => (
               <TouchableOpacity
                 key={item.id}
-                style={styles.recentCard}
+                style={[styles.recentCard, {
+                  backgroundColor: colors.card,
+                  borderColor: isDark ? colors.cardBorder : '#E8EDF2',
+                  shadowColor: isDark ? colors.primary : '#000',
+                }]}
                 onPress={() => router.push(`/post-detail?id=${item.id}`)}
                 activeOpacity={0.8}
               >
                 {item.image_url ? (
                   <Image source={{ uri: item.image_url }} style={styles.recentImg} />
                 ) : (
-                  <View style={[styles.recentImgPlaceholder, item.type === 'free' ? styles.placeholderFree : styles.placeholderExchange]}>
+                  <View style={[styles.recentImgPlaceholder, {
+                    backgroundColor: item.type === 'free'
+                      ? (isDark ? 'rgba(0,204,106,0.15)' : '#ECFDF5')
+                      : (isDark ? 'rgba(59,130,246,0.15)' : '#EFF6FF'),
+                  }]}>
                     {item.type === 'free'
-                      ? <Gift size={22} color={Colors.white} />
-                      : <ArrowLeftRight size={22} color={Colors.white} />}
+                      ? <Gift size={24} color={colors.free} />
+                      : <ArrowLeftRight size={24} color={colors.exchange} />
+                    }
                   </View>
                 )}
-                {item.is_urgent && (
-                  <View style={styles.urgentBadge}>
-                    <Flame size={10} color={Colors.white} />
-                    <Text style={styles.urgentBadgeText}>مستعجل</Text>
+
+                {/* Badges */}
+                <View style={styles.cardBadgeRow}>
+                  {item.is_urgent && (
+                    <View style={styles.urgentBadge}>
+                      <Flame size={9} color="#fff" />
+                      <Text style={styles.urgentText}>مستعجل</Text>
+                    </View>
+                  )}
+                  <View style={[styles.statusBadge, { backgroundColor: `${statusColor[item.status] ?? colors.textMuted}22` }]}>
+                    <Text style={[styles.statusBadgeText, { color: statusColor[item.status] ?? colors.textMuted }]}>
+                      {statusLabel[item.status] ?? item.status}
+                    </Text>
                   </View>
-                )}
-                {item.status === 'reserved' && (
-                  <View style={styles.reservedBadge}>
-                    <Text style={styles.reservedBadgeText}>محجوز</Text>
-                  </View>
-                )}
+                </View>
+
                 <View style={styles.recentCardBody}>
-                  <Text style={styles.recentCardTitle} numberOfLines={2}>{item.title}</Text>
+                  <Text style={[styles.recentCardTitle, { color: colors.text }]} numberOfLines={2}>
+                    {item.title}
+                  </Text>
                   <View style={styles.recentCardMeta}>
                     {item.city ? (
                       <View style={styles.metaRow}>
-                        <MapPin size={11} color={Colors.neutral[400]} />
-                        <Text style={styles.metaText}>{item.city}</Text>
+                        <MapPin size={10} color={colors.textSecondary} />
+                        <Text style={[styles.metaText, { color: colors.textSecondary }]}>{item.city}</Text>
                       </View>
                     ) : null}
                     <View style={styles.metaRow}>
-                      <Clock size={11} color={Colors.neutral[400]} />
-                      <Text style={styles.metaText}>{timeAgo(item.created_at)}</Text>
+                      <Clock size={10} color={colors.textSecondary} />
+                      <Text style={[styles.metaText, { color: colors.textSecondary }]}>{timeAgo(item.created_at)}</Text>
                     </View>
                   </View>
                 </View>
@@ -143,38 +210,46 @@ export default function HomeScreen() {
           </View>
         </View>
       )}
-
-      <View style={{ height: 100 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
 
   hero: {
-    backgroundColor: Colors.primary[700],
     paddingHorizontal: Spacing.lg,
-    paddingTop: 52,
+    paddingTop: 56,
     paddingBottom: Spacing.xl,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -60,
+    left: '50%',
+    marginLeft: -120,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(0,255,135,0.06)',
   },
   heroGreeting: {
-    fontSize: FontSizes.md,
-    color: Colors.primary[200],
+    fontSize: FontSizes.sm,
     textAlign: 'right',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
+    fontWeight: '600',
   },
   heroTitle: {
     fontSize: 32,
     fontWeight: '800',
-    color: Colors.white,
+    color: '#FFFFFF',
     textAlign: 'right',
     lineHeight: 44,
     marginBottom: Spacing.sm,
   },
   heroSub: {
     fontSize: FontSizes.md,
-    color: Colors.primary[200],
     textAlign: 'right',
     marginBottom: Spacing.lg,
   },
@@ -183,40 +258,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.md,
   },
-  entryBtnFree: {
+  entryBtn: {
     flex: 1,
-    backgroundColor: '#059669',
-    borderRadius: BorderRadius.lg,
-    paddingVertical: 20,
+    borderRadius: BorderRadius.xl,
+    paddingVertical: 22,
     alignItems: 'center',
     gap: 6,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  entryBtnExchange: {
-    flex: 1,
-    backgroundColor: '#2563eb',
-    borderRadius: BorderRadius.lg,
-    paddingVertical: 20,
-    alignItems: 'center',
-    gap: 6,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 6,
   },
   entryBtnLabel: {
     fontSize: FontSizes.xl,
     fontWeight: '800',
-    color: Colors.white,
   },
   entryBtnSub: {
     fontSize: FontSizes.xs,
-    color: 'rgba(255,255,255,0.75)',
     fontWeight: '600',
   },
 
@@ -225,34 +279,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.primary[600],
     marginHorizontal: Spacing.lg,
     marginTop: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    paddingVertical: 14,
-    shadowColor: Colors.primary[600],
+    borderRadius: BorderRadius.xl,
+    paddingVertical: 16,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 6,
   },
   postCtaText: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.lg,
     fontWeight: '700',
-    color: Colors.white,
+    letterSpacing: 0.3,
   },
 
   recentSection: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
   sectionTitle: {
     fontSize: FontSizes.lg,
     fontWeight: '700',
-    color: Colors.text,
     textAlign: 'right',
-    marginBottom: Spacing.md,
   },
+  seeAll: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  },
+
   recentGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -260,54 +321,51 @@ const styles = StyleSheet.create({
   },
   recentCard: {
     width: '47%',
-    backgroundColor: Colors.white,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.border,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  recentImg: { width: '100%', height: 100, resizeMode: 'cover' },
+  recentImg: { width: '100%', height: 110, resizeMode: 'cover' },
   recentImgPlaceholder: {
     width: '100%',
-    height: 100,
+    height: 110,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeholderFree: { backgroundColor: '#059669' },
-  placeholderExchange: { backgroundColor: '#2563eb' },
-  urgentBadge: {
+  cardBadgeRow: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 8,
+    left: 8,
+    right: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  urgentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
     backgroundColor: '#ef4444',
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: BorderRadius.full,
   },
-  urgentBadgeText: { fontSize: 10, color: Colors.white, fontWeight: '700' },
-  reservedBadge: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    backgroundColor: Colors.accent[500],
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  urgentText: { fontSize: 9, color: '#fff', fontWeight: '700' },
+  statusBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: BorderRadius.full,
   },
-  reservedBadgeText: { fontSize: 10, color: Colors.white, fontWeight: '700' },
-  recentCardBody: { padding: 10, gap: 4 },
+  statusBadgeText: { fontSize: 9, fontWeight: '700' },
+
+  recentCardBody: { padding: 10, gap: 5 },
   recentCardTitle: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
-    color: Colors.text,
     textAlign: 'right',
     lineHeight: 18,
   },
@@ -316,8 +374,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 2,
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  metaText: { fontSize: 10, color: Colors.neutral[400] },
+  metaText: { fontSize: 10 },
 });

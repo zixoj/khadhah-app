@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
+import { useTheme } from '@/lib/ThemeContext';
+import type { ThemeMode } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import {
   ChevronLeft, Eye, Lock, UserX, LogOut, MessageCircle,
-  Shield, X, Phone, Trash2, AlertTriangle,
+  Shield, X, Phone, Trash2, AlertTriangle, Sun, Moon, Monitor,
 } from 'lucide-react-native';
 
 interface PrivacyState {
@@ -35,6 +37,8 @@ interface BlockedUser {
 export default function PrivacySecurityScreen() {
   const router = useRouter();
   const { profile, signOut } = useAuth();
+  const { colors, isDark, mode, setMode } = useTheme();
+  const C = colors;
 
   const [privacy, setPrivacy] = useState<PrivacyState>({
     show_phone: true,
@@ -46,7 +50,6 @@ export default function PrivacySecurityScreen() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Password modal
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -54,12 +57,10 @@ export default function PrivacySecurityScreen() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
-  // Blocked users modal
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [blockedLoading, setBlockedLoading] = useState(false);
 
-  // Delete account modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
 
@@ -168,7 +169,6 @@ export default function PrivacySecurityScreen() {
 
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== 'حذف') return;
-    // Mark account for deletion — actual deletion requires server-side
     await supabase
       .from('profiles')
       .update({ full_name: '[محذوف]', phone: '', avatar_url: '', city: '' })
@@ -177,124 +177,184 @@ export default function PrivacySecurityScreen() {
     router.replace('/(auth)/login');
   };
 
+  const themeModes: { value: ThemeMode; label: string; icon: React.ReactNode }[] = [
+    { value: 'light', label: 'فاتح', icon: <Sun size={18} color={mode === 'light' ? C.primary : C.textMuted} /> },
+    { value: 'dark', label: 'داكن', icon: <Moon size={18} color={mode === 'dark' ? C.primary : C.textMuted} /> },
+    { value: 'system', label: 'تلقائي', icon: <Monitor size={18} color={mode === 'system' ? C.primary : C.textMuted} /> },
+  ];
+
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.navBar}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-            <ChevronLeft size={24} color={Colors.text} />
+      <View style={[styles.container, { backgroundColor: C.background }]}>
+        <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+            hitSlop={12}
+          >
+            <ChevronLeft size={22} color={C.text} />
           </TouchableOpacity>
-          <Text style={styles.navTitle}>الخصوصية والأمان</Text>
-          <View style={{ width: 24 }} />
+          <Text style={[styles.navTitle, { color: C.text }]}>الخصوصية والإعدادات</Text>
+          <View style={{ width: 38 }} />
         </View>
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.primary[600]} />
+          <ActivityIndicator size="large" color={C.primary} />
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Nav Bar */}
-      <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-          <ChevronLeft size={24} color={Colors.text} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+          hitSlop={12}
+        >
+          <ChevronLeft size={22} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>الخصوصية والأمان</Text>
-        <View style={{ width: 24 }} />
+        <Text style={[styles.navTitle, { color: C.text }]}>الخصوصية والإعدادات</Text>
+        <View style={{ width: 38 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[styles.errorBox, { backgroundColor: C.errorBg, borderColor: C.error }]}>
+            <Text style={[styles.errorText, { color: C.error }]}>{error}</Text>
           </View>
         )}
         {saveSuccess && (
-          <View style={styles.successBox}>
-            <Text style={styles.successText}>تم حفظ الإعدادات بنجاح</Text>
+          <View style={[styles.successBox, { backgroundColor: isDark ? 'rgba(0,204,106,0.12)' : '#F0FDF4', borderColor: isDark ? C.primary : '#86EFAC' }]}>
+            <Text style={[styles.successText, { color: C.primary }]}>تم حفظ الإعدادات بنجاح</Text>
           </View>
         )}
 
+        {/* المظهر */}
+        <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>المظهر</Text>
+        <View style={[styles.card, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E8EDF2' }]}>
+          <View style={styles.themeRow}>
+            {themeModes.map((t) => (
+              <TouchableOpacity
+                key={t.value}
+                style={[
+                  styles.themeChip,
+                  {
+                    backgroundColor: mode === t.value
+                      ? (isDark ? `${C.primary}18` : `${C.primary}15`)
+                      : (isDark ? C.surface : '#F4F7FA'),
+                    borderColor: mode === t.value ? C.primary : (isDark ? C.border : '#E8EDF2'),
+                  },
+                ]}
+                onPress={() => setMode(t.value)}
+                activeOpacity={0.7}
+              >
+                {t.icon}
+                <Text style={[styles.themeChipText, { color: mode === t.value ? C.primary : C.textSecondary }]}>
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         {/* خصوصية الملف الشخصي */}
-        <Text style={styles.sectionLabel}>خصوصية الملف الشخصي</Text>
-        <View style={styles.card}>
+        <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>خصوصية الملف الشخصي</Text>
+        <View style={[styles.card, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E8EDF2' }]}>
           <ToggleRow
-            icon={<Eye size={20} color={Colors.primary[600]} />}
+            icon={<Eye size={20} color={C.primary} />}
             label="إظهار رقم الجوال"
             description="يستطيع الآخرون رؤية رقمك"
             value={privacy.show_phone}
             onValueChange={(v) => setPrivacy((p) => ({ ...p, show_phone: v }))}
+            colors={C}
+            isDark={isDark}
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: isDark ? C.border : '#F0F4F8' }]} />
           <ToggleRow
-            icon={<Phone size={20} color="#25d366" />}
+            icon={<Phone size={20} color="#25D366" />}
             label="السماح بالتواصل عبر واتساب"
             description="إظهار زر واتساب في ملفك الشخصي"
             value={privacy.allow_whatsapp}
             onValueChange={(v) => setPrivacy((p) => ({ ...p, allow_whatsapp: v }))}
+            colors={C}
+            isDark={isDark}
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: isDark ? C.border : '#F0F4F8' }]} />
           <ToggleRow
-            icon={<MessageCircle size={20} color={Colors.primary[600]} />}
+            icon={<MessageCircle size={20} color={C.primary} />}
             label="السماح بالرسائل داخل التطبيق"
             description="يستطيع الآخرون مراسلتك داخل التطبيق"
             value={privacy.allow_messages}
             onValueChange={(v) => setPrivacy((p) => ({ ...p, allow_messages: v }))}
+            colors={C}
+            isDark={isDark}
           />
         </View>
 
         <TouchableOpacity
-          style={[styles.saveBtn, saving && styles.btnDisabled]}
+          style={[styles.saveBtn, {
+            backgroundColor: isDark ? 'transparent' : C.primary,
+            borderColor: C.primary, borderWidth: isDark ? 1.5 : 0,
+          }, saving && styles.btnDisabled]}
           onPress={savePrivacy}
           disabled={saving}
           activeOpacity={0.8}
         >
           {saving
-            ? <ActivityIndicator color={Colors.white} />
-            : <Text style={styles.saveBtnText}>حفظ إعدادات الخصوصية</Text>
+            ? <ActivityIndicator color={isDark ? C.primary : '#fff'} />
+            : <Text style={[styles.saveBtnText, { color: isDark ? C.primary : '#fff' }]}>حفظ إعدادات الخصوصية</Text>
           }
         </TouchableOpacity>
 
         {/* الأمان */}
-        <Text style={styles.sectionLabel}>الأمان</Text>
-        <View style={styles.card}>
+        <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>الأمان</Text>
+        <View style={[styles.card, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E8EDF2' }]}>
           <ActionRow
-            icon={<Lock size={20} color={Colors.primary[600]} />}
+            icon={<Lock size={20} color={C.primary} />}
             label="تغيير كلمة المرور"
             onPress={() => setShowPasswordModal(true)}
+            colors={C}
+            isDark={isDark}
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: isDark ? C.border : '#F0F4F8' }]} />
           <ActionRow
-            icon={<UserX size={20} color={Colors.neutral[500]} />}
+            icon={<UserX size={20} color={C.textSecondary} />}
             label="المستخدمون المحظورون"
             onPress={openBlockedModal}
+            colors={C}
+            isDark={isDark}
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: isDark ? C.border : '#F0F4F8' }]} />
           <ActionRow
-            icon={<LogOut size={20} color={Colors.error[500]} />}
+            icon={<LogOut size={20} color={C.error} />}
             label="تسجيل الخروج من جميع الأجهزة"
             onPress={signOutAllDevices}
+            colors={C}
+            isDark={isDark}
             danger
           />
         </View>
 
         {/* منطقة الخطر */}
-        <Text style={styles.sectionLabel}>منطقة الخطر</Text>
-        <View style={styles.card}>
+        <Text style={[styles.sectionLabel, { color: C.textSecondary }]}>منطقة الخطر</Text>
+        <View style={[styles.card, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E8EDF2' }]}>
           <ActionRow
-            icon={<Trash2 size={20} color={Colors.error[500]} />}
+            icon={<Trash2 size={20} color={C.error} />}
             label="حذف الحساب نهائياً"
             onPress={() => setShowDeleteModal(true)}
+            colors={C}
+            isDark={isDark}
             danger
           />
         </View>
 
-        {/* معلومات */}
-        <View style={styles.infoBox}>
-          <Shield size={18} color={Colors.primary[600]} />
-          <Text style={styles.infoText}>
+        <View style={[styles.infoBox, {
+          backgroundColor: isDark ? `${C.primary}10` : `${C.primary}0D`,
+          borderColor: isDark ? `${C.primary}30` : `${C.primary}25`,
+        }]}>
+          <Shield size={18} color={C.primary} />
+          <Text style={[styles.infoText, { color: isDark ? C.textSecondary : C.primary }]}>
             نقوم بحماية بياناتك وفق أعلى معايير الأمان. إذا لاحظت أي نشاط مشبوه يرجى التواصل معنا فوراً.
           </Text>
         </View>
@@ -303,54 +363,62 @@ export default function PrivacySecurityScreen() {
       {/* Modal: تغيير كلمة المرور */}
       <Modal visible={showPasswordModal} transparent animationType="slide" onRequestClose={() => setShowPasswordModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { backgroundColor: C.navBar }]}>
+            <View style={[styles.modalHandle, { backgroundColor: isDark ? C.border : '#CBD5E1' }]} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>تغيير كلمة المرور</Text>
-              <TouchableOpacity onPress={() => { setShowPasswordModal(false); setPasswordError(null); setPasswordSuccess(false); }} hitSlop={8}>
-                <X size={22} color={Colors.text} />
+              <Text style={[styles.modalTitle, { color: C.text }]}>تغيير كلمة المرور</Text>
+              <TouchableOpacity
+                onPress={() => { setShowPasswordModal(false); setPasswordError(null); setPasswordSuccess(false); }}
+                hitSlop={8}
+                style={[styles.modalCloseBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+              >
+                <X size={18} color={C.text} />
               </TouchableOpacity>
             </View>
 
             {passwordError && (
-              <View style={styles.modalError}>
-                <Text style={styles.modalErrorText}>{passwordError}</Text>
+              <View style={[styles.modalFeedback, { backgroundColor: C.errorBg, borderColor: C.error }]}>
+                <Text style={[styles.modalFeedbackText, { color: C.error }]}>{passwordError}</Text>
               </View>
             )}
             {passwordSuccess && (
-              <View style={styles.modalSuccess}>
-                <Text style={styles.modalSuccessText}>تم تغيير كلمة المرور بنجاح</Text>
+              <View style={[styles.modalFeedback, { backgroundColor: isDark ? 'rgba(0,204,106,0.12)' : '#F0FDF4', borderColor: isDark ? C.primary : '#86EFAC' }]}>
+                <Text style={[styles.modalFeedbackText, { color: C.primary }]}>تم تغيير كلمة المرور بنجاح</Text>
               </View>
             )}
 
-            <Text style={styles.inputLabel}>كلمة المرور الجديدة</Text>
+            <Text style={[styles.inputLabel, { color: C.textSecondary }]}>كلمة المرور الجديدة</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: C.input, borderColor: C.inputBorder, color: C.text }]}
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry
               placeholder="8 أحرف على الأقل"
-              placeholderTextColor={Colors.neutral[400]}
+              placeholderTextColor={C.textMuted}
               textAlign="right"
             />
-            <Text style={styles.inputLabel}>تأكيد كلمة المرور</Text>
+            <Text style={[styles.inputLabel, { color: C.textSecondary }]}>تأكيد كلمة المرور</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: C.input, borderColor: C.inputBorder, color: C.text }]}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
               placeholder="أعد إدخال كلمة المرور"
-              placeholderTextColor={Colors.neutral[400]}
+              placeholderTextColor={C.textMuted}
               textAlign="right"
             />
             <TouchableOpacity
-              style={[styles.modalBtn, passwordSaving && styles.btnDisabled]}
+              style={[styles.modalBtn, {
+                backgroundColor: isDark ? 'transparent' : C.primary,
+                borderColor: C.primary, borderWidth: isDark ? 1.5 : 0,
+              }, passwordSaving && styles.btnDisabled]}
               onPress={changePassword}
               disabled={passwordSaving}
               activeOpacity={0.8}
             >
               {passwordSaving
-                ? <ActivityIndicator color={Colors.white} />
-                : <Text style={styles.modalBtnText}>تغيير كلمة المرور</Text>
+                ? <ActivityIndicator color={isDark ? C.primary : '#fff'} />
+                : <Text style={[styles.modalBtnText, { color: isDark ? C.primary : '#fff' }]}>تغيير كلمة المرور</Text>
               }
             </TouchableOpacity>
           </View>
@@ -360,35 +428,40 @@ export default function PrivacySecurityScreen() {
       {/* Modal: المستخدمون المحظورون */}
       <Modal visible={showBlockedModal} transparent animationType="slide" onRequestClose={() => setShowBlockedModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalSheet, styles.modalSheetTall]}>
+          <View style={[styles.modalSheet, styles.modalSheetTall, { backgroundColor: C.navBar }]}>
+            <View style={[styles.modalHandle, { backgroundColor: isDark ? C.border : '#CBD5E1' }]} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>المستخدمون المحظورون</Text>
-              <TouchableOpacity onPress={() => setShowBlockedModal(false)} hitSlop={8}>
-                <X size={22} color={Colors.text} />
+              <Text style={[styles.modalTitle, { color: C.text }]}>المستخدمون المحظورون</Text>
+              <TouchableOpacity
+                onPress={() => setShowBlockedModal(false)}
+                hitSlop={8}
+                style={[styles.modalCloseBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+              >
+                <X size={18} color={C.text} />
               </TouchableOpacity>
             </View>
 
             {blockedLoading ? (
               <View style={styles.center}>
-                <ActivityIndicator color={Colors.primary[600]} />
+                <ActivityIndicator color={C.primary} />
               </View>
             ) : blockedUsers.length === 0 ? (
               <View style={styles.emptyState}>
-                <UserX size={40} color={Colors.neutral[300]} />
-                <Text style={styles.emptyText}>لا يوجد مستخدمون محظورون</Text>
+                <UserX size={40} color={C.textMuted} />
+                <Text style={[styles.emptyText, { color: C.textSecondary }]}>لا يوجد مستخدمون محظورون</Text>
               </View>
             ) : (
               <ScrollView>
                 {blockedUsers.map((u) => (
-                  <View key={u.id} style={styles.blockedRow}>
+                  <View key={u.id} style={[styles.blockedRow, { borderBottomColor: isDark ? C.border : '#F0F4F8' }]}>
                     <TouchableOpacity
-                      style={styles.unblockBtn}
+                      style={[styles.unblockBtn, { backgroundColor: C.errorBg, borderColor: C.error }]}
                       onPress={() => unblockUser(u.id)}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.unblockText}>إلغاء الحظر</Text>
+                      <Text style={[styles.unblockText, { color: C.error }]}>إلغاء الحظر</Text>
                     </TouchableOpacity>
-                    <Text style={styles.blockedName}>{u.full_name}</Text>
+                    <Text style={[styles.blockedName, { color: C.text }]}>{u.full_name}</Text>
                   </View>
                 ))}
               </ScrollView>
@@ -400,28 +473,33 @@ export default function PrivacySecurityScreen() {
       {/* Modal: حذف الحساب */}
       <Modal visible={showDeleteModal} transparent animationType="slide" onRequestClose={() => setShowDeleteModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { backgroundColor: C.navBar }]}>
+            <View style={[styles.modalHandle, { backgroundColor: isDark ? C.border : '#CBD5E1' }]} />
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: Colors.error[600] }]}>حذف الحساب</Text>
-              <TouchableOpacity onPress={() => { setShowDeleteModal(false); setDeleteConfirm(''); }} hitSlop={8}>
-                <X size={22} color={Colors.text} />
+              <Text style={[styles.modalTitle, { color: C.error }]}>حذف الحساب</Text>
+              <TouchableOpacity
+                onPress={() => { setShowDeleteModal(false); setDeleteConfirm(''); }}
+                hitSlop={8}
+                style={[styles.modalCloseBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+              >
+                <X size={18} color={C.text} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.deleteWarning}>
-              <AlertTriangle size={22} color={Colors.error[500]} />
-              <Text style={styles.deleteWarningText}>
+            <View style={[styles.deleteWarning, { backgroundColor: C.errorBg, borderColor: isDark ? C.error : '#FECACA' }]}>
+              <AlertTriangle size={22} color={C.error} />
+              <Text style={[styles.deleteWarningText, { color: C.error }]}>
                 سيتم حذف حسابك وجميع بياناتك نهائياً ولا يمكن التراجع عن هذا الإجراء.
               </Text>
             </View>
 
-            <Text style={styles.inputLabel}>اكتب "حذف" للتأكيد</Text>
+            <Text style={[styles.inputLabel, { color: C.textSecondary }]}>اكتب "حذف" للتأكيد</Text>
             <TextInput
-              style={[styles.input, styles.deleteInput]}
+              style={[styles.input, { backgroundColor: C.input, borderColor: C.error, color: C.text }]}
               value={deleteConfirm}
               onChangeText={setDeleteConfirm}
               placeholder='اكتب "حذف"'
-              placeholderTextColor={Colors.neutral[400]}
+              placeholderTextColor={C.textMuted}
               textAlign="right"
             />
             <TouchableOpacity
@@ -440,170 +518,152 @@ export default function PrivacySecurityScreen() {
 }
 
 function ToggleRow({
-  icon, label, description, value, onValueChange,
+  icon, label, description, value, onValueChange, colors: C, isDark,
 }: {
   icon: React.ReactNode;
   label: string;
   description: string;
   value: boolean;
   onValueChange: (v: boolean) => void;
+  colors: any;
+  isDark: boolean;
 }) {
   return (
     <View style={styles.toggleRow}>
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: Colors.neutral[200], true: Colors.primary[300] }}
-        thumbColor={value ? Colors.primary[600] : Colors.neutral[400]}
+        trackColor={{ false: isDark ? C.border : '#CBD5E1', true: `${C.primary}66` }}
+        thumbColor={value ? C.primary : (isDark ? C.textMuted : '#94A3B8')}
       />
       <View style={styles.toggleText}>
-        <Text style={styles.toggleLabel}>{label}</Text>
-        <Text style={styles.toggleDesc}>{description}</Text>
+        <Text style={[styles.toggleLabel, { color: C.text }]}>{label}</Text>
+        <Text style={[styles.toggleDesc, { color: C.textSecondary }]}>{description}</Text>
       </View>
-      <View style={styles.iconBox}>{icon}</View>
+      <View style={[styles.iconBox, { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}>{icon}</View>
     </View>
   );
 }
 
 function ActionRow({
-  icon, label, onPress, danger = false,
+  icon, label, onPress, danger = false, colors: C, isDark,
 }: {
   icon: React.ReactNode;
   label: string;
   onPress: () => void;
   danger?: boolean;
+  colors: any;
+  isDark: boolean;
 }) {
   return (
     <TouchableOpacity style={styles.actionRow} onPress={onPress} activeOpacity={0.6}>
-      <ChevronLeft size={18} color={Colors.neutral[300]} />
-      <Text style={[styles.actionLabel, danger && styles.actionLabelDanger]}>{label}</Text>
-      <View style={styles.iconBox}>{icon}</View>
+      <ChevronLeft size={18} color={C.textMuted} />
+      <Text style={[styles.actionLabel, { color: danger ? C.error : C.text }]}>{label}</Text>
+      <View style={[styles.iconBox, { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}>{icon}</View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   navBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md,
-    backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
   },
-  navTitle: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text },
+  navTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
+  navIconBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
   content: { padding: Spacing.lg, gap: Spacing.md, paddingBottom: 100 },
 
-  errorBox: {
-    backgroundColor: Colors.error[50], borderWidth: 1, borderColor: Colors.error[400],
-    borderRadius: BorderRadius.md, padding: Spacing.md,
-  },
-  errorText: { color: Colors.error[600], fontSize: FontSizes.sm, textAlign: 'right' },
-  successBox: {
-    backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac',
-    borderRadius: BorderRadius.md, padding: Spacing.md,
-  },
-  successText: { color: '#16a34a', fontSize: FontSizes.sm, textAlign: 'right', fontWeight: '600' },
+  errorBox: { borderWidth: 1, borderRadius: BorderRadius.md, padding: Spacing.md },
+  errorText: { fontSize: FontSizes.sm, textAlign: 'right' },
+  successBox: { borderWidth: 1, borderRadius: BorderRadius.md, padding: Spacing.md },
+  successText: { fontSize: FontSizes.sm, textAlign: 'right', fontWeight: '600' },
 
-  sectionLabel: {
-    fontSize: FontSizes.sm, fontWeight: '700', color: Colors.textSecondary, textAlign: 'right',
+  sectionLabel: { fontSize: FontSizes.sm, fontWeight: '700', textAlign: 'right' },
+  card: { borderRadius: BorderRadius.lg, borderWidth: 1, overflow: 'hidden' },
+  divider: { height: 1 },
+
+  themeRow: { flexDirection: 'row', gap: Spacing.sm, padding: Spacing.md },
+  themeChip: {
+    flex: 1, flexDirection: 'column', alignItems: 'center', gap: 6,
+    paddingVertical: Spacing.md, borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
   },
-  card: {
-    backgroundColor: Colors.white, borderRadius: BorderRadius.lg,
-    borderWidth: 1, borderColor: Colors.border, overflow: 'hidden',
-  },
-  divider: { height: 1, backgroundColor: Colors.border },
+  themeChipText: { fontSize: FontSizes.xs, fontWeight: '600' },
 
   toggleRow: {
     flexDirection: 'row', alignItems: 'center',
     padding: Spacing.md, gap: Spacing.md,
   },
   toggleText: { flex: 1, alignItems: 'flex-end' },
-  toggleLabel: { fontSize: FontSizes.md, color: Colors.text, fontWeight: '600' },
-  toggleDesc: { fontSize: FontSizes.xs, color: Colors.textSecondary, textAlign: 'right' },
+  toggleLabel: { fontSize: FontSizes.md, fontWeight: '600' },
+  toggleDesc: { fontSize: FontSizes.xs, textAlign: 'right' },
   iconBox: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: Colors.neutral[50],
     justifyContent: 'center', alignItems: 'center',
   },
 
   actionRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, gap: Spacing.md },
-  actionLabel: { flex: 1, fontSize: FontSizes.md, color: Colors.text, fontWeight: '500', textAlign: 'right' },
-  actionLabelDanger: { color: Colors.error[500] },
+  actionLabel: { flex: 1, fontSize: FontSizes.md, fontWeight: '500', textAlign: 'right' },
 
   saveBtn: {
-    backgroundColor: Colors.primary[600], borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md + 2, alignItems: 'center',
-    shadowColor: Colors.primary[600], shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   btnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: Colors.white, fontSize: FontSizes.lg, fontWeight: '700' },
+  saveBtnText: { fontSize: FontSizes.lg, fontWeight: '700' },
 
   infoBox: {
     flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start',
-    backgroundColor: Colors.primary[50], borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.primary[100], padding: Spacing.md,
+    borderRadius: BorderRadius.md, borderWidth: 1, padding: Spacing.md,
   },
-  infoText: { flex: 1, fontSize: FontSizes.sm, color: Colors.primary[700], textAlign: 'right', lineHeight: 20 },
+  infoText: { flex: 1, fontSize: FontSizes.sm, textAlign: 'right', lineHeight: 20 },
 
-  // Modals
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: Colors.white,
     borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl,
     padding: Spacing.lg, gap: Spacing.md,
   },
   modalSheetTall: { maxHeight: '70%' },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.xs },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  modalTitle: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text },
-  modalError: {
-    backgroundColor: Colors.error[50], borderRadius: BorderRadius.sm,
-    padding: Spacing.sm, borderWidth: 1, borderColor: Colors.error[400],
-  },
-  modalErrorText: { color: Colors.error[600], fontSize: FontSizes.sm, textAlign: 'right' },
-  modalSuccess: {
-    backgroundColor: '#f0fdf4', borderRadius: BorderRadius.sm,
-    padding: Spacing.sm, borderWidth: 1, borderColor: '#86efac',
-  },
-  modalSuccessText: { color: '#16a34a', fontSize: FontSizes.sm, textAlign: 'right', fontWeight: '600' },
-  inputLabel: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.textSecondary, textAlign: 'right' },
+  modalTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
+  modalCloseBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  modalFeedback: { borderRadius: BorderRadius.sm, padding: Spacing.sm, borderWidth: 1 },
+  modalFeedbackText: { fontSize: FontSizes.sm, textAlign: 'right' },
+  inputLabel: { fontSize: FontSizes.sm, fontWeight: '600', textAlign: 'right' },
   input: {
-    backgroundColor: Colors.neutral[50], borderWidth: 1.5, borderColor: Colors.border,
-    borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-    fontSize: FontSizes.md, color: Colors.text, textAlign: 'right',
+    borderWidth: 1.5, borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
+    fontSize: FontSizes.md, textAlign: 'right',
   },
-  modalBtn: {
-    backgroundColor: Colors.primary[600], borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md, alignItems: 'center',
-  },
-  modalBtnText: { color: Colors.white, fontSize: FontSizes.lg, fontWeight: '700' },
+  modalBtn: { borderRadius: BorderRadius.md, paddingVertical: Spacing.md, alignItems: 'center' },
+  modalBtnText: { fontSize: FontSizes.lg, fontWeight: '700' },
 
-  // Blocked users
   emptyState: { alignItems: 'center', padding: Spacing.xl, gap: Spacing.md },
-  emptyText: { fontSize: FontSizes.md, color: Colors.textSecondary },
+  emptyText: { fontSize: FontSizes.md },
   blockedRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    paddingVertical: Spacing.md, borderBottomWidth: 1,
   },
-  blockedName: { fontSize: FontSizes.md, color: Colors.text, fontWeight: '500' },
+  blockedName: { fontSize: FontSizes.md, fontWeight: '500' },
   unblockBtn: {
-    backgroundColor: Colors.error[50], borderRadius: BorderRadius.sm,
+    borderRadius: BorderRadius.sm,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    borderWidth: 1, borderColor: Colors.error[400],
+    borderWidth: 1,
   },
-  unblockText: { fontSize: FontSizes.sm, color: Colors.error[600], fontWeight: '600' },
+  unblockText: { fontSize: FontSizes.sm, fontWeight: '600' },
 
-  // Delete account
   deleteWarning: {
     flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start',
-    backgroundColor: Colors.error[50], borderRadius: BorderRadius.md,
-    borderWidth: 1, borderColor: Colors.error[100], padding: Spacing.md,
+    borderRadius: BorderRadius.md, borderWidth: 1, padding: Spacing.md,
   },
-  deleteWarningText: { flex: 1, fontSize: FontSizes.sm, color: Colors.error[600], textAlign: 'right', lineHeight: 20 },
-  deleteInput: { borderColor: Colors.error[400] },
+  deleteWarningText: { flex: 1, fontSize: FontSizes.sm, textAlign: 'right', lineHeight: 20 },
   deleteBtn: {
-    backgroundColor: Colors.error[500], borderRadius: BorderRadius.md,
+    backgroundColor: '#EF4444', borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md, alignItems: 'center',
   },
-  deleteBtnText: { color: Colors.white, fontSize: FontSizes.lg, fontWeight: '700' },
+  deleteBtnText: { color: '#fff', fontSize: FontSizes.lg, fontWeight: '700' },
 });

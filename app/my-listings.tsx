@@ -11,8 +11,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
+import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import {
   ChevronLeft,
   Trash2,
@@ -21,6 +22,7 @@ import {
   ArrowLeftRight,
   Gift,
   Plus,
+  LayoutList,
 } from 'lucide-react-native';
 
 interface Listing {
@@ -39,6 +41,8 @@ interface Listing {
 export default function MyListingsScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { colors, isDark } = useTheme();
+  const C = colors;
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [boostCount, setBoostCount] = useState(0);
@@ -95,7 +99,6 @@ export default function MyListingsScreen() {
       {
         text: 'تمييز',
         onPress: async () => {
-          // Free boost: owner updates their own listing + profile (both allowed by owner RLS policies)
           const boostedUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
           const [listingRes, profileRes] = await Promise.all([
             supabase.from('listings').update({ is_boosted: true, boosted_until: boostedUntil }).eq('id', listing.id).eq('user_id', profile!.id),
@@ -118,75 +121,116 @@ export default function MyListingsScreen() {
     ]);
   };
 
-  const renderItem = ({ item }: { item: Listing }) => (
-    <View style={[styles.card, item.is_boosted && styles.cardBoosted]}>
-      {item.is_boosted && (
-        <View style={styles.boostBadge}>
-          <Zap size={11} color={Colors.white} fill={Colors.white} />
-          <Text style={styles.boostBadgeText}>مميز</Text>
-        </View>
-      )}
-      <TouchableOpacity onPress={() => router.push(`/post-detail?id=${item.id}`)} activeOpacity={0.8} style={styles.cardImageWrap}>
-        {item.image_url ? (
-          <Image source={{ uri: item.image_url }} style={styles.cardImage} />
-        ) : (
-          <View style={styles.cardImagePlaceholder}>
-            {item.type === 'exchange'
-              ? <ArrowLeftRight size={24} color={Colors.primary[300]} />
-              : <Gift size={24} color={Colors.free} />
-            }
+  const renderItem = ({ item }: { item: Listing }) => {
+    const isExchange = item.type === 'exchange';
+    return (
+      <View style={[
+        styles.card,
+        {
+          backgroundColor: C.card,
+          borderColor: item.is_boosted
+            ? C.warning
+            : (isDark ? C.cardBorder : '#E8EDF2'),
+          borderWidth: item.is_boosted ? 2 : 1,
+        },
+      ]}>
+        {item.is_boosted && (
+          <View style={[styles.boostBadge, { backgroundColor: C.warning }]}>
+            <Zap size={11} color="#fff" fill="#fff" />
+            <Text style={styles.boostBadgeText}>مميز</Text>
           </View>
         )}
-      </TouchableOpacity>
-      <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-        <View style={styles.cardMeta}>
-          <View style={[styles.typePill, item.type === 'exchange' ? styles.typePillEx : styles.typePillFree]}>
-            <Text style={styles.typePillText}>{item.type === 'exchange' ? 'بدل' : 'خذه'}</Text>
+        <TouchableOpacity onPress={() => router.push(`/post-detail?id=${item.id}`)} activeOpacity={0.8}>
+          {item.image_url ? (
+            <Image source={{ uri: item.image_url }} style={styles.cardImage} />
+          ) : (
+            <View style={[styles.cardImagePlaceholder, { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}>
+              {isExchange
+                ? <ArrowLeftRight size={24} color={C.exchange} />
+                : <Gift size={24} color={C.free} />
+              }
+            </View>
+          )}
+        </TouchableOpacity>
+        <View style={styles.cardBody}>
+          <Text style={[styles.cardTitle, { color: C.text }]} numberOfLines={2}>{item.title}</Text>
+          <View style={styles.cardMeta}>
+            <View style={[styles.typePill, {
+              backgroundColor: isExchange
+                ? (isDark ? C.exchangeBg : '#EFF6FF')
+                : (isDark ? C.freeBg : '#ECFDF5'),
+            }]}>
+              <Text style={[styles.typePillText, { color: isExchange ? C.exchange : C.free }]}>
+                {isExchange ? 'بدل' : 'خذه'}
+              </Text>
+            </View>
+            <View style={styles.viewsRow}>
+              <Eye size={12} color={C.textMuted} />
+              <Text style={[styles.viewsText, { color: C.textMuted }]}>{item.views_count || 0}</Text>
+            </View>
           </View>
-          <View style={styles.viewsRow}>
-            <Eye size={12} color={Colors.neutral[400]} />
-            <Text style={styles.viewsText}>{item.views_count || 0}</Text>
+          <View style={styles.cardActions}>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: isDark ? C.surface : '#F4F7FA', borderColor: isDark ? C.border : '#E8EDF2' }]}
+              onPress={() => handleBoost(item)}
+              activeOpacity={0.7}
+            >
+              <Zap size={16} color={item.is_boosted ? C.warning : C.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: isDark ? C.errorBg : '#FFF5F5', borderColor: isDark ? C.error : '#FECACA' }]}
+              onPress={() => handleDelete(item.id)}
+              activeOpacity={0.7}
+            >
+              <Trash2 size={16} color={C.error} />
+            </TouchableOpacity>
           </View>
-        </View>
-        <View style={styles.cardActions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => handleBoost(item)} activeOpacity={0.7}>
-            <Zap size={16} color={item.is_boosted ? Colors.accent[500] : Colors.neutral[400]} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => handleDelete(item.id)} activeOpacity={0.7}>
-            <Trash2 size={16} color={Colors.error[500]} />
-          </TouchableOpacity>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} color={Colors.text} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+        >
+          <ChevronLeft size={22} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>إعلاناتي</Text>
-        <View style={{ width: 24 }} />
+        <Text style={[styles.navTitle, { color: C.text }]}>إعلاناتي</Text>
+        <View style={{ width: 38 }} />
       </View>
 
       {boostCount > 0 && (
-        <View style={styles.boostInfo}>
-          <Zap size={16} color={Colors.accent[600]} />
-          <Text style={styles.boostInfoText}>لديك {boostCount} بوست مجاني متاح</Text>
+        <View style={[styles.boostInfo, { backgroundColor: isDark ? C.warningBg : '#FFFBEB', borderBottomColor: isDark ? 'rgba(255,179,0,0.2)' : '#FDE68A' }]}>
+          <Zap size={16} color={C.warning} />
+          <Text style={[styles.boostInfoText, { color: C.warning }]}>لديك {boostCount} بوست مجاني متاح</Text>
         </View>
       )}
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary[600]} /></View>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={C.primary} />
+        </View>
       ) : listings.length === 0 ? (
         <View style={styles.center}>
-          <List size={48} color={Colors.neutral[300]} />
-          <Text style={styles.emptyText}>لا توجد إعلانات بعد</Text>
-          <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/add-post')} activeOpacity={0.8}>
-            <Plus size={18} color={Colors.white} />
-            <Text style={styles.addBtnText}>أضف إعلانك الأول</Text>
+          <View style={[styles.emptyIconWrap, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
+            <LayoutList size={40} color={C.textMuted} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: C.text }]}>لا توجد إعلانات بعد</Text>
+          <TouchableOpacity
+            style={[styles.addBtn, {
+              backgroundColor: isDark ? 'transparent' : C.primary,
+              borderColor: C.primary,
+              borderWidth: isDark ? 1.5 : 0,
+            }]}
+            onPress={() => router.push('/add-post')}
+            activeOpacity={0.8}
+          >
+            <Plus size={18} color={isDark ? C.primary : '#fff'} />
+            <Text style={[styles.addBtnText, { color: isDark ? C.primary : '#fff' }]}>أضف إعلانك الأول</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -201,81 +245,81 @@ export default function MyListingsScreen() {
         />
       )}
 
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/add-post')} activeOpacity={0.8}>
-        <Plus size={26} color={Colors.white} />
+      <TouchableOpacity
+        style={[styles.fab, {
+          backgroundColor: isDark ? 'transparent' : C.primary,
+          borderColor: isDark ? C.primary : 'transparent',
+          borderWidth: isDark ? 1.5 : 0,
+          shadowColor: C.primary,
+        }]}
+        onPress={() => router.push('/add-post')}
+        activeOpacity={0.8}
+      >
+        <Plus size={26} color={isDark ? C.primary : '#fff'} />
       </TouchableOpacity>
     </View>
   );
 }
 
-function List({ size, color }: { size: number; color: string }) {
-  return <Text style={{ fontSize: size, color }}>📋</Text>;
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   navBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md,
-    backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
   },
-  navTitle: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text },
+  navTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
+  navIconBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
   boostInfo: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.accent[50], borderBottomWidth: 1, borderBottomColor: Colors.accent[100],
+    borderBottomWidth: 1,
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
     justifyContent: 'flex-end',
   },
-  boostInfoText: { fontSize: FontSizes.sm, color: Colors.accent[600], fontWeight: '600' },
+  boostInfoText: { fontSize: FontSizes.sm, fontWeight: '600' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md },
-  emptyText: { fontSize: FontSizes.md, color: Colors.textSecondary },
+  emptyIconWrap: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.sm },
+  emptyTitle: { fontSize: FontSizes.md, fontWeight: '600' },
   addBtn: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: Colors.primary[600], borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
-  addBtnText: { color: Colors.white, fontSize: FontSizes.md, fontWeight: '700' },
+  addBtnText: { fontSize: FontSizes.md, fontWeight: '700' },
   listContent: { padding: Spacing.md, paddingBottom: 100 },
   row: { gap: Spacing.md, marginBottom: Spacing.md },
   card: {
-    flex: 1, backgroundColor: Colors.white, borderRadius: BorderRadius.lg,
-    overflow: 'hidden', borderWidth: 1, borderColor: Colors.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    flex: 1, borderRadius: BorderRadius.lg, overflow: 'hidden',
   },
-  cardBoosted: { borderColor: Colors.accent[400], borderWidth: 2 },
   boostBadge: {
     position: 'absolute', top: 6, right: 6, zIndex: 1,
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: Colors.accent[500], borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.full,
     paddingHorizontal: 6, paddingVertical: 3,
   },
-  boostBadgeText: { fontSize: FontSizes.xs, color: Colors.white, fontWeight: '700' },
-  cardImageWrap: {},
+  boostBadgeText: { fontSize: FontSizes.xs, color: '#fff', fontWeight: '700' },
   cardImage: { width: '100%', height: 100, resizeMode: 'cover' },
   cardImagePlaceholder: {
-    width: '100%', height: 100, backgroundColor: Colors.neutral[100],
+    width: '100%', height: 100,
     justifyContent: 'center', alignItems: 'center',
   },
   cardBody: { padding: Spacing.sm, gap: Spacing.xs },
-  cardTitle: { fontSize: FontSizes.sm, fontWeight: '600', color: Colors.text, textAlign: 'right', lineHeight: 18 },
+  cardTitle: { fontSize: FontSizes.sm, fontWeight: '600', textAlign: 'right', lineHeight: 18 },
   cardMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   typePill: { borderRadius: BorderRadius.full, paddingHorizontal: 6, paddingVertical: 2 },
-  typePillEx: { backgroundColor: Colors.primary[100] },
-  typePillFree: { backgroundColor: '#d1fae5' },
-  typePillText: { fontSize: FontSizes.xs, fontWeight: '700', color: Colors.primary[700] },
+  typePillText: { fontSize: FontSizes.xs, fontWeight: '700' },
   viewsRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  viewsText: { fontSize: FontSizes.xs, color: Colors.neutral[400] },
+  viewsText: { fontSize: FontSizes.xs },
   cardActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, paddingTop: 2 },
   actionBtn: {
-    width: 32, height: 32, borderRadius: 8, backgroundColor: Colors.neutral[50],
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: Colors.border,
+    width: 32, height: 32, borderRadius: 8,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1,
   },
   fab: {
     position: 'absolute', bottom: Spacing.xl, left: Spacing.lg,
-    width: 54, height: 54, borderRadius: 27, backgroundColor: Colors.primary[600],
+    width: 54, height: 54, borderRadius: 27,
     justifyContent: 'center', alignItems: 'center',
-    shadowColor: Colors.primary[600], shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
   },
 });

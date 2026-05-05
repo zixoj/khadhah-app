@@ -1,18 +1,19 @@
 import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '@/lib/auth';
+import { useTheme } from '@/lib/ThemeContext';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '@/lib/theme';
 import { Home, ArrowLeftRight, Gift, Truck, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   const { session, profile, loading } = useAuth();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   if (loading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={Colors.primary[600]} />
+      <View style={[styles.loading, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -23,32 +24,46 @@ export default function TabLayout() {
 
   const isAgent = profile?.role === 'delivery_agent';
   const bottomPad = Platform.OS !== 'web' ? insets.bottom : 10;
-  const tabBarHeight = 56 + bottomPad;
+  const tabBarHeight = 62 + bottomPad;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary[600],
-        tabBarInactiveTintColor: Colors.neutral[400],
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: Colors.white,
-          borderTopColor: Colors.border,
-          borderTopWidth: 1,
+          backgroundColor: colors.tabBar,
+          borderTopColor: colors.tabBarBorder,
+          borderTopWidth: isDark ? 1 : 0.5,
           height: tabBarHeight,
           paddingBottom: bottomPad,
-          paddingTop: 6,
-          // Force fixed position on web
+          paddingTop: 8,
           position: Platform.OS === 'web' ? 'fixed' as any : 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
           zIndex: 9999,
+          ...(isDark && {
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.08,
+            shadowRadius: 12,
+            elevation: 20,
+          }),
+          ...(!isDark && {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.06,
+            shadowRadius: 8,
+            elevation: 8,
+          }),
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
-          marginTop: 1,
+          marginTop: 2,
+          letterSpacing: 0.2,
         },
       }}
     >
@@ -98,6 +113,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.white,
   },
 });

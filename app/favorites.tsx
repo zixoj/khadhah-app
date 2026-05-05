@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
+import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import { ChevronLeft, Heart, MapPin, Trash2 } from 'lucide-react-native';
 
 interface FavoriteListing {
@@ -30,6 +31,8 @@ interface FavoriteListing {
 export default function FavoritesScreen() {
   const router = useRouter();
   const { profile } = useAuth();
+  const { colors, isDark } = useTheme();
+  const C = colors;
   const [favorites, setFavorites] = useState<FavoriteListing[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,59 +58,83 @@ export default function FavoritesScreen() {
   const renderItem = ({ item }: { item: FavoriteListing }) => {
     const listing = item.listings;
     if (!listing) return null;
+    const isExchange = listing.type === 'exchange';
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[
+          styles.card,
+          {
+            backgroundColor: C.card,
+            borderColor: isDark ? C.cardBorder : '#E8EDF2',
+          },
+        ]}
         onPress={() => router.push(`/post-detail?id=${listing.id}`)}
-        activeOpacity={0.7}
+        activeOpacity={0.75}
       >
         {listing.image_url ? (
           <Image source={{ uri: listing.image_url }} style={styles.cardImage} />
         ) : (
-          <View style={styles.cardImagePlaceholder}>
-            <Heart size={24} color={Colors.neutral[300]} />
+          <View style={[styles.cardImagePlaceholder, { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}>
+            <Heart size={24} color={C.textMuted} />
           </View>
         )}
         <View style={styles.cardBody}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{listing.title}</Text>
+          <Text style={[styles.cardTitle, { color: C.text }]} numberOfLines={2}>{listing.title}</Text>
           <View style={styles.cardMeta}>
             {listing.category ? (
-              <View style={styles.catPill}>
-                <Text style={styles.catPillText}>{listing.category}</Text>
+              <View style={[styles.catPill, {
+                backgroundColor: isExchange
+                  ? (isDark ? C.exchangeBg : '#EFF6FF')
+                  : (isDark ? C.freeBg : '#ECFDF5'),
+              }]}>
+                <Text style={[styles.catPillText, {
+                  color: isExchange ? C.exchange : C.free,
+                }]}>{listing.category}</Text>
               </View>
             ) : null}
             {listing.city ? (
               <View style={styles.cityRow}>
-                <MapPin size={11} color={Colors.neutral[400]} />
-                <Text style={styles.cityText}>{listing.city}</Text>
+                <MapPin size={11} color={C.textMuted} />
+                <Text style={[styles.cityText, { color: C.textMuted }]}>{listing.city}</Text>
               </View>
             ) : null}
           </View>
         </View>
-        <TouchableOpacity style={styles.removeBtn} onPress={() => removeFavorite(item.id)} activeOpacity={0.7}>
-          <Trash2 size={16} color={Colors.error[400]} />
+        <TouchableOpacity
+          style={[styles.removeBtn, { borderLeftColor: isDark ? C.cardBorder : '#E8EDF2' }]}
+          onPress={() => removeFavorite(item.id)}
+          activeOpacity={0.7}
+        >
+          <Trash2 size={16} color={C.error} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} color={Colors.text} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+        >
+          <ChevronLeft size={22} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>المفضلة</Text>
-        <View style={{ width: 24 }} />
+        <Text style={[styles.navTitle, { color: C.text }]}>المفضلة</Text>
+        <View style={{ width: 38 }} />
       </View>
 
       {loading ? (
-        <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary[600]} /></View>
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={C.primary} />
+        </View>
       ) : favorites.length === 0 ? (
         <View style={styles.center}>
-          <Heart size={52} color={Colors.neutral[300]} />
-          <Text style={styles.emptyText}>لا توجد إعلانات محفوظة</Text>
-          <Text style={styles.emptySubText}>اضغط على ❤️ في أي إعلان لحفظه هنا</Text>
+          <View style={[styles.emptyIconWrap, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
+            <Heart size={40} color={C.textMuted} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: C.text }]}>لا توجد إعلانات محفوظة</Text>
+          <Text style={[styles.emptySub, { color: C.textSecondary }]}>اضغط على القلب في أي إعلان لحفظه هنا</Text>
         </View>
       ) : (
         <FlatList
@@ -123,36 +150,37 @@ export default function FavoritesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   navBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md,
-    backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
   },
-  navTitle: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.sm },
-  emptyText: { fontSize: FontSizes.lg, color: Colors.textSecondary, fontWeight: '600' },
-  emptySubText: { fontSize: FontSizes.sm, color: Colors.neutral[400] },
+  navTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
+  navIconBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.xl },
+  emptyIconWrap: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.sm },
+  emptyTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
+  emptySub: { fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 22 },
   listContent: { padding: Spacing.md, gap: Spacing.md, paddingBottom: 100 },
   card: {
-    flexDirection: 'row', backgroundColor: Colors.white, borderRadius: BorderRadius.lg,
-    borderWidth: 1, borderColor: Colors.border, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    flexDirection: 'row', borderRadius: BorderRadius.lg,
+    borderWidth: 1, overflow: 'hidden',
   },
   cardImage: { width: 100, height: 90, resizeMode: 'cover' },
   cardImagePlaceholder: {
-    width: 100, height: 90, backgroundColor: Colors.neutral[100],
+    width: 100, height: 90,
     justifyContent: 'center', alignItems: 'center',
   },
   cardBody: { flex: 1, padding: Spacing.sm, justifyContent: 'center', gap: Spacing.xs },
-  cardTitle: { fontSize: FontSizes.md, fontWeight: '600', color: Colors.text, textAlign: 'right' },
+  cardTitle: { fontSize: FontSizes.md, fontWeight: '600', textAlign: 'right' },
   cardMeta: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, flexWrap: 'wrap' },
-  catPill: { backgroundColor: Colors.primary[50], borderRadius: BorderRadius.full, paddingHorizontal: 8, paddingVertical: 2 },
-  catPillText: { fontSize: FontSizes.xs, color: Colors.primary[700], fontWeight: '600' },
+  catPill: { borderRadius: BorderRadius.full, paddingHorizontal: 8, paddingVertical: 2 },
+  catPillText: { fontSize: FontSizes.xs, fontWeight: '600' },
   cityRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  cityText: { fontSize: FontSizes.xs, color: Colors.neutral[400] },
+  cityText: { fontSize: FontSizes.xs },
   removeBtn: {
     width: 44, justifyContent: 'center', alignItems: 'center',
-    borderLeftWidth: 1, borderLeftColor: Colors.border,
+    borderLeftWidth: 1,
   },
 });

@@ -13,8 +13,9 @@ import {
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/lib/auth';
+import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import { ChevronLeft, User, Camera, Check } from 'lucide-react-native';
 
 const CITIES = [
@@ -31,6 +32,8 @@ const ROLES = [
 export default function EditProfileScreen() {
   const router = useRouter();
   const { profile: baseProfile } = useAuth();
+  const { colors, isDark } = useTheme();
+  const C = colors;
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -144,33 +147,45 @@ export default function EditProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.navBar}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-            <ChevronLeft size={24} color={Colors.text} />
+      <View style={[styles.container, { backgroundColor: C.background }]}>
+        <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+            hitSlop={12}
+          >
+            <ChevronLeft size={22} color={C.text} />
           </TouchableOpacity>
-          <Text style={styles.navTitle}>تعديل الملف الشخصي</Text>
-          <View style={{ width: 24 }} />
+          <Text style={[styles.navTitle, { color: C.text }]}>تعديل الملف الشخصي</Text>
+          <View style={{ width: 38 }} />
         </View>
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={Colors.primary[600]} />
+          <ActivityIndicator size="large" color={C.primary} />
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Nav Bar */}
-      <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-          <ChevronLeft size={24} color={Colors.text} />
+    <View style={[styles.container, { backgroundColor: C.background }]}>
+      <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+          hitSlop={12}
+        >
+          <ChevronLeft size={22} color={C.text} />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>تعديل الملف الشخصي</Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={12}>
+        <Text style={[styles.navTitle, { color: C.text }]}>تعديل الملف الشخصي</Text>
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={saving}
+          style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}
+          hitSlop={12}
+        >
           {saving
-            ? <ActivityIndicator size="small" color={Colors.primary[600]} />
-            : <Check size={24} color={Colors.primary[600]} />
+            ? <ActivityIndicator size="small" color={C.primary} />
+            : <Check size={20} color={C.primary} />
           }
         </TouchableOpacity>
       </View>
@@ -181,99 +196,122 @@ export default function EditProfileScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Feedback */}
         {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[styles.errorBox, { backgroundColor: C.errorBg, borderColor: C.error }]}>
+            <Text style={[styles.errorText, { color: C.error }]}>{error}</Text>
           </View>
         )}
         {success && (
-          <View style={styles.successBox}>
-            <Text style={styles.successText}>تم حفظ التعديلات بنجاح</Text>
+          <View style={[styles.successBox, { backgroundColor: isDark ? 'rgba(0,204,106,0.12)' : '#F0FDF4', borderColor: isDark ? C.primary : '#86EFAC' }]}>
+            <Text style={[styles.successText, { color: C.primary }]}>تم حفظ التعديلات بنجاح</Text>
           </View>
         )}
 
-        {/* Avatar */}
         <View style={styles.avatarSection}>
           <TouchableOpacity onPress={pickImage} activeOpacity={0.8} style={styles.avatarWrap}>
             {displayAvatar ? (
-              <Image source={{ uri: displayAvatar }} style={styles.avatar} />
+              <Image source={{ uri: displayAvatar }} style={[styles.avatar, { borderColor: isDark ? C.primary : `${C.primary}66` }]} />
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <User size={44} color={Colors.primary[400]} />
+              <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? C.card : `${C.primary}10`, borderColor: isDark ? C.primary : `${C.primary}66` }]}>
+                <User size={44} color={C.primary} />
               </View>
             )}
-            <View style={styles.cameraBadge}>
-              <Camera size={16} color={Colors.white} />
+            <View style={[styles.cameraBadge, { backgroundColor: C.primary }]}>
+              <Camera size={16} color={isDark ? '#000' : '#fff'} />
             </View>
           </TouchableOpacity>
-          <Text style={styles.avatarHint}>اضغط لتغيير الصورة الشخصية</Text>
+          <Text style={[styles.avatarHint, { color: C.textSecondary }]}>اضغط لتغيير الصورة الشخصية</Text>
         </View>
 
-        {/* الاسم */}
-        <Text style={styles.label}>الاسم الكامل</Text>
+        <Text style={[styles.label, { color: C.text }]}>الاسم الكامل</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: C.input, borderColor: C.inputBorder, color: C.text }]}
           value={fullName}
           onChangeText={setFullName}
           placeholder="أدخل اسمك الكامل"
-          placeholderTextColor={Colors.neutral[400]}
+          placeholderTextColor={C.textMuted}
           textAlign="right"
         />
 
-        {/* رقم الجوال */}
-        <Text style={styles.label}>رقم الجوال</Text>
+        <Text style={[styles.label, { color: C.text }]}>رقم الجوال</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: C.input, borderColor: C.inputBorder, color: C.text }]}
           value={phone}
           onChangeText={setPhone}
           placeholder="05xxxxxxxx"
-          placeholderTextColor={Colors.neutral[400]}
+          placeholderTextColor={C.textMuted}
           keyboardType="phone-pad"
           textAlign="right"
         />
 
-        {/* نوع الحساب */}
-        <Text style={styles.label}>نوع الحساب</Text>
+        <Text style={[styles.label, { color: C.text }]}>نوع الحساب</Text>
         <View style={styles.roleRow}>
           {ROLES.map((r) => (
             <TouchableOpacity
               key={r.value}
-              style={[styles.roleChip, role === r.value && styles.roleChipActive]}
+              style={[
+                styles.roleChip,
+                {
+                  backgroundColor: role === r.value
+                    ? (isDark ? `${C.primary}18` : C.primary)
+                    : (isDark ? C.card : '#F4F7FA'),
+                  borderColor: role === r.value ? C.primary : (isDark ? C.border : '#E8EDF2'),
+                },
+              ]}
               onPress={() => setRole(r.value)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.roleChipText, role === r.value && styles.roleChipTextActive]}>
+              <Text style={[styles.roleChipText, {
+                color: role === r.value
+                  ? (isDark ? C.primary : '#fff')
+                  : C.textSecondary,
+              }]}>
                 {r.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* المدينة */}
-        <Text style={styles.label}>المدينة</Text>
+        <Text style={[styles.label, { color: C.text }]}>المدينة</Text>
         <View style={styles.cityGrid}>
           {CITIES.map((c) => (
             <TouchableOpacity
               key={c}
-              style={[styles.cityChip, city === c && styles.cityChipActive]}
+              style={[
+                styles.cityChip,
+                {
+                  backgroundColor: city === c
+                    ? (isDark ? `${C.primary}18` : C.primary)
+                    : (isDark ? C.card : '#F4F7FA'),
+                  borderColor: city === c ? C.primary : (isDark ? C.border : '#E8EDF2'),
+                },
+              ]}
               onPress={() => setCity(c)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.cityChipText, city === c && styles.cityChipTextActive]}>{c}</Text>
+              <Text style={[styles.cityChipText, {
+                color: city === c
+                  ? (isDark ? C.primary : '#fff')
+                  : C.textSecondary,
+                fontWeight: city === c ? '600' : '400',
+              }]}>{c}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <TouchableOpacity
-          style={[styles.saveBtn, saving && styles.btnDisabled]}
+          style={[styles.saveBtn, {
+            backgroundColor: isDark ? 'transparent' : C.primary,
+            borderColor: C.primary, borderWidth: isDark ? 1.5 : 0,
+            shadowColor: C.primary,
+          }, saving && styles.btnDisabled]}
           onPress={handleSave}
           disabled={saving}
           activeOpacity={0.8}
         >
           {saving
-            ? <ActivityIndicator color={Colors.white} />
-            : <Text style={styles.saveBtnText}>حفظ التعديلات</Text>
+            ? <ActivityIndicator color={isDark ? C.primary : '#fff'} />
+            : <Text style={[styles.saveBtnText, { color: isDark ? C.primary : '#fff' }]}>حفظ التعديلات</Text>
           }
         </TouchableOpacity>
       </ScrollView>
@@ -282,78 +320,66 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   navBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md,
-    backgroundColor: Colors.white, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
   },
-  navTitle: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text },
+  navTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
+  navIconBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
   scrollContent: { padding: Spacing.lg, paddingBottom: 100, gap: Spacing.md },
 
-  errorBox: {
-    backgroundColor: Colors.error[50], borderWidth: 1, borderColor: Colors.error[400],
-    borderRadius: BorderRadius.md, padding: Spacing.md,
-  },
-  errorText: { color: Colors.error[600], fontSize: FontSizes.sm, textAlign: 'right' },
-  successBox: {
-    backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac',
-    borderRadius: BorderRadius.md, padding: Spacing.md,
-  },
-  successText: { color: '#16a34a', fontSize: FontSizes.sm, textAlign: 'right', fontWeight: '600' },
+  errorBox: { borderWidth: 1, borderRadius: BorderRadius.md, padding: Spacing.md },
+  errorText: { fontSize: FontSizes.sm, textAlign: 'right' },
+  successBox: { borderWidth: 1, borderRadius: BorderRadius.md, padding: Spacing.md },
+  successText: { fontSize: FontSizes.sm, textAlign: 'right', fontWeight: '600' },
 
   avatarSection: { alignItems: 'center', paddingVertical: Spacing.md, gap: Spacing.sm },
   avatarWrap: { position: 'relative' },
-  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: Colors.primary[200] },
+  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 3 },
   avatarPlaceholder: {
     width: 100, height: 100, borderRadius: 50,
-    backgroundColor: Colors.primary[50], justifyContent: 'center', alignItems: 'center',
-    borderWidth: 3, borderColor: Colors.primary[200],
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 3,
   },
   cameraBadge: {
     position: 'absolute', bottom: 2, right: 2,
     width: 30, height: 30, borderRadius: 15,
-    backgroundColor: Colors.primary[600],
     justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: Colors.white,
+    borderWidth: 2, borderColor: '#fff',
   },
-  avatarHint: { fontSize: FontSizes.sm, color: Colors.textSecondary },
+  avatarHint: { fontSize: FontSizes.sm },
 
-  label: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text, textAlign: 'right' },
+  label: { fontSize: FontSizes.md, fontWeight: '700', textAlign: 'right' },
   input: {
-    backgroundColor: Colors.white, borderWidth: 1.5, borderColor: Colors.border,
-    borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-    fontSize: FontSizes.md, color: Colors.text, textAlign: 'right',
+    borderWidth: 1.5, borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
+    fontSize: FontSizes.md, textAlign: 'right',
   },
 
   roleRow: { flexDirection: 'row', gap: Spacing.sm },
   roleChip: {
     flex: 1, paddingVertical: Spacing.md, borderRadius: BorderRadius.md,
-    backgroundColor: Colors.white, borderWidth: 1.5, borderColor: Colors.border,
-    alignItems: 'center',
+    borderWidth: 1.5, alignItems: 'center',
   },
-  roleChipActive: { backgroundColor: Colors.primary[600], borderColor: Colors.primary[600] },
-  roleChipText: { fontSize: FontSizes.md, color: Colors.textSecondary, fontWeight: '600' },
-  roleChipTextActive: { color: Colors.white },
+  roleChipText: { fontSize: FontSizes.md, fontWeight: '600' },
 
   cityGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   cityChip: {
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full, backgroundColor: Colors.white,
-    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: BorderRadius.full, borderWidth: 1,
   },
-  cityChipActive: { backgroundColor: Colors.primary[600], borderColor: Colors.primary[600] },
-  cityChipText: { fontSize: FontSizes.sm, color: Colors.textSecondary },
-  cityChipTextActive: { color: Colors.white, fontWeight: '600' },
+  cityChipText: { fontSize: FontSizes.sm },
 
   saveBtn: {
-    backgroundColor: Colors.primary[600], borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.md,
     paddingVertical: Spacing.md + 2, alignItems: 'center', marginTop: Spacing.md,
-    shadowColor: Colors.primary[600], shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
   btnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: Colors.white, fontSize: FontSizes.lg, fontWeight: '700' },
+  saveBtnText: { fontSize: FontSizes.lg, fontWeight: '700' },
 });
