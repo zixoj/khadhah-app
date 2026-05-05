@@ -8,7 +8,7 @@ import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import {
-  User, ChevronLeft, LogOut, Edit3, Star, Heart, Wallet, Bell, Shield,
+  User, ChevronLeft, LogOut, Edit3, Star, Heart, Bell, Shield,
   List, Activity, CheckCircle, Truck, Megaphone, Phone, ShieldCheck, MessageSquare,
 } from 'lucide-react-native';
 import PhoneVerifyModal from '@/components/PhoneVerifyModal';
@@ -16,7 +16,7 @@ import PhoneVerifyModal from '@/components/PhoneVerifyModal';
 interface ExtendedProfile {
   id: string; full_name: string; phone: string; phone_verified: boolean;
   role: string; avatar_url: string; city: string; is_verified: boolean;
-  rating_avg: number; rating_count: number; wallet_balance: number;
+  rating_avg: number; rating_count: number;
   boost_count: number; created_at: string;
 }
 
@@ -108,10 +108,10 @@ export default function ProfileScreen() {
             <Text style={[styles.statLabel, { color: isDark ? C.textSecondary : 'rgba(255,255,255,0.65)' }]}>المفضلة</Text>
           </TouchableOpacity>
           <View style={[styles.statDivider, { backgroundColor: isDark ? C.border : 'rgba(255,255,255,0.15)' }]} />
-          <TouchableOpacity style={styles.statItem} onPress={() => router.push('/wallet')} activeOpacity={0.7}>
-            <Text style={[styles.statNum, { color: isDark ? C.primary : '#fff' }]}>{profile?.wallet_balance?.toFixed(0) || '0'}</Text>
-            <Text style={[styles.statLabel, { color: isDark ? C.textSecondary : 'rgba(255,255,255,0.65)' }]}>رصيدي (ر.س)</Text>
-          </TouchableOpacity>
+          <View style={styles.statItem}>
+            <Text style={[styles.statNum, { color: isDark ? C.primary : '#fff' }]}>{(profile?.rating_avg || 0).toFixed(1)}</Text>
+            <Text style={[styles.statLabel, { color: isDark ? C.textSecondary : 'rgba(255,255,255,0.65)' }]}>تقييمي</Text>
+          </View>
         </View>
       </View>
 
@@ -159,8 +159,7 @@ export default function ProfileScreen() {
         <MenuItem icon={<Edit3 size={18} color={C.primary} />} label="تعديل الملف الشخصي" onPress={() => router.push('/settings/edit-profile')} colors={C} isDark={isDark} />
         <MenuItem icon={<List size={18} color={C.primary} />} label="إعلاناتي" badge={myListingsCount > 0 ? `${myListingsCount}` : undefined} onPress={() => router.push('/my-listings')} colors={C} isDark={isDark} />
         <MenuItem icon={<MessageSquare size={18} color={C.exchange} />} label="محادثاتي" onPress={() => router.push('/conversations')} colors={C} isDark={isDark} />
-        <MenuItem icon={<Heart size={18} color={C.error} />} label="المفضلة" badge={favoritesCount > 0 ? `${favoritesCount}` : undefined} onPress={() => router.push('/favorites')} colors={C} isDark={isDark} />
-        <MenuItem icon={<Wallet size={18} color="#F59E0B" />} label="المحفظة" sublabel={`${profile?.wallet_balance?.toFixed(2) || '0.00'} ر.س`} onPress={() => router.push('/wallet')} colors={C} isDark={isDark} last />
+        <MenuItem icon={<Heart size={18} color={C.error} />} label="المفضلة" badge={favoritesCount > 0 ? `${favoritesCount}` : undefined} onPress={() => router.push('/favorites')} colors={C} isDark={isDark} last />
       </View>
 
       {/* Section: الإعدادات */}

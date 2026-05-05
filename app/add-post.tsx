@@ -8,7 +8,6 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
-  Alert,
   Platform,
   Switch,
 } from 'react-native';
@@ -19,18 +18,8 @@ import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import {
-  ChevronLeft,
-  Camera,
-  MapPin,
-  Check,
-  Truck,
-  User,
-  MessageCircle,
-  ArrowLeftRight,
-  Gift,
-  X,
-  PawPrint,
-  Flame,
+  ChevronLeft, Camera, MapPin, Check, Truck, User,
+  MessageCircle, ArrowLeftRight, Gift, X, PawPrint, Flame,
 } from 'lucide-react-native';
 
 const CITIES = [
@@ -61,6 +50,14 @@ const DELIVERY_OPTIONS = [
 type PostType = 'exchange' | 'free';
 type DeliveryMethod = 'pickup' | 'delivery_agent' | 'direct_contact';
 
+const RPC_ERRORS: Record<string, string> = {
+  missing_title: 'الرجاء إدخال عنوان الإعلان',
+  missing_category: 'الرجاء اختيار التصنيف',
+  missing_city: 'الرجاء اختيار المدينة',
+  invalid_type: 'نوع الإعلان غير صحيح',
+  daily_limit_reached: 'لقد وصلت إلى الحد اليومي (إعلانان يومياً). حاول غداً.',
+};
+
 export default function AddPostScreen() {
   const router = useRouter();
   const { type: typeParam } = useLocalSearchParams<{ type: string }>();
@@ -82,20 +79,14 @@ export default function AddPostScreen() {
   const [isUrgent, setIsUrgent] = useState(false);
   const [dualMode, setDualMode] = useState(false);
 
-  const requestPermission = async () => {
+  const pickImage = async () => {
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('إذن مطلوب', 'يرجى السماح بالوصول إلى الصور');
-        return false;
+        setError('يرجى السماح بالوصول إلى الصور');
+        return;
       }
     }
-    return true;
-  };
-
-  const pickImage = async () => {
-    const permitted = await requestPermission();
-    if (!permitted) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -106,6 +97,7 @@ export default function AddPostScreen() {
   };
 
   const uploadImage = async (uri: string): Promise<string> => {
+    // Path must be under user's own folder for storage RLS: {userId}/{filename}
     const filename = `${profile!.id}/${Date.now()}.jpg`;
     const response = await fetch(uri);
     const blob = await response.blob();
@@ -122,29 +114,55 @@ export default function AddPostScreen() {
     if (!category) { setError('الرجاء اختيار التصنيف'); return; }
     if (!city) { setError('الرجاء اختيار المدينة'); return; }
     if (!phone.trim()) { setError('الرجاء إدخال رقم الهاتف'); return; }
-    setLoading(true); setError(null);
+
+    setLoading(true);
+    setError(null);
+
     let finalImageUrl = '';
     if (imageUri) {
       setUploading(true);
-      try { finalImageUrl = await uploadImage(imageUri); }
-      catch (err: any) { setError('فشل رفع الصورة: ' + (err.message || 'خطأ غير معروف')); setLoading(false); setUploading(false); return; }
+      try {
+        finalImageUrl = await uploadImage(imageUri);
+      } catch (err: any) {
+        setError('فشل رفع الصورة: ' + (err.message || 'خطأ غير معروف'));
+        setLoading(false);
+        setUploading(false);
+        return;
+      }
       setUploading(false);
     }
-    const urgentUntil = isUrgent ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null;
-    const { error: insertError } = await supabase.from('listings').insert({
-      user_id: profile!.id, title: title.trim(), description: description.trim(),
-      category, type: postType, city, phone: phone.trim(), delivery_method: deliveryMethod,
-      image_url: finalImageUrl, is_urgent: isUrgent, urgent_until: urgentUntil,
-      dual_mode: dualMode, status: 'available',
+
+    const { data, error: rpcError } = await supabase.rpc('create_listing', {
+      p_title: title.trim(),
+      p_description: description.trim(),
+      p_category: category,
+      p_type: postType,
+      p_city: city,
+      p_phone: phone.trim(),
+      p_delivery_method: deliveryMethod,
+      p_image_url: finalImageUrl,
+      p_is_urgent: isUrgent,
+      p_dual_mode: dualMode,
     });
+
     setLoading(false);
-    if (insertError) { setError(insertError.message || 'حدث خطأ أثناء النشر'); return; }
-    Alert.alert('تم بنجاح', 'تم نشر إعلانك بنجاح', [{ text: 'حسناً', onPress: () => router.back() }]);
+
+    if (rpcError) {
+      setError(rpcError.message || 'حدث خطأ أثناء النشر');
+      return;
+    }
+
+    if (!data?.success) {
+      const reason = data?.reason as string;
+      setError(RPC_ERRORS[reason] || 'حدث خطأ أثناء النشر');
+      return;
+    }
+
+    router.back();
   };
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      {/* Nav */}
       <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
         <TouchableOpacity onPress={() => router.back()} style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
           <ChevronLeft size={22} color={C.text} />

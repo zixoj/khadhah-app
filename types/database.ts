@@ -7,6 +7,8 @@ export type DeliveryStatus = 'pending' | 'accepted' | 'in_progress' | 'delivered
 export interface Profile {
   id: string;
   full_name: string;
+  display_name: string | null;
+  username: string | null;
   phone: string;
   role: UserRole;
   avatar_url: string;
@@ -22,6 +24,8 @@ export interface Profile {
   allow_messages: boolean;
   phone_verified: boolean;
   phone_verified_at: string | null;
+  last_display_name_change_at: string | null;
+  last_username_change_at: string | null;
 }
 
 export interface Listing {
