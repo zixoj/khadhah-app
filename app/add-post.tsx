@@ -51,6 +51,12 @@ const CATEGORIES = [
   { label: 'أخرى',        value: 'other' },
 ];
 
+const DELIVERY_OPTIONS = [
+  { value: 'pickup',         label: 'استلام شخصي',  icon: User },
+  { value: 'delivery_agent', label: 'مندوب توصيل',  icon: Truck },
+  { value: 'direct_contact', label: 'تواصل مباشر',  icon: MessageCircle },
+] as const;
+
 type PostType = 'exchange' | 'free';
 type DeliveryMethod = 'pickup' | 'delivery_agent' | 'direct_contact';
 
@@ -67,21 +73,13 @@ export default function AddPostScreen() {
   const [description, setDescription] = useState('');
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState(profile?.phone || '');
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('direct_contact');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Extra toggles
   const [isUrgent, setIsUrgent] = useState(false);
   const [dualMode, setDualMode] = useState(false);
-
-  // Post-submission state
-  const [submitted, setSubmitted] = useState(false);
-  const [createdListingId, setCreatedListingId] = useState('');
-  const [pickupAddress, setPickupAddress] = useState('');
-  const [dropoffAddress, setDropoffAddress] = useState('');
-  const [showDeliveryForm, setShowDeliveryForm] = useState(false);
 
   const requestPermission = async () => {
     if (Platform.OS !== 'web') {
@@ -159,7 +157,7 @@ export default function AddPostScreen() {
       ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    const { data: listing, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from('listings')
       .insert({
         user_id: profile!.id,
@@ -169,151 +167,25 @@ export default function AddPostScreen() {
         type: postType,
         city,
         phone: phone.trim(),
-        delivery_method: 'direct_contact',
+        delivery_method: deliveryMethod,
         image_url: finalImageUrl,
         is_urgent: isUrgent,
         urgent_until: urgentUntil,
         dual_mode: dualMode,
         status: 'available',
-      })
-      .select()
-      .maybeSingle();
+      });
 
-    if (insertError || !listing) {
-      setError(insertError?.message || 'حدث خطأ أثناء النشر');
-      setLoading(false);
-      return;
-    }
-
-    setCreatedListingId(listing.id);
-    setSubmitted(true);
     setLoading(false);
-  };
 
-  const handleDeliveryChoice = async (method: DeliveryMethod) => {
-    await supabase
-      .from('listings')
-      .update({ delivery_method: method })
-      .eq('id', createdListingId);
-
-    if (method === 'delivery_agent') {
-      setShowDeliveryForm(true);
+    if (insertError) {
+      setError(insertError.message || 'حدث خطأ أثناء النشر');
       return;
     }
 
-    const message =
-      method === 'pickup'
-        ? 'تم نشر إعلانك - سيتم الاستلام شخصياً'
-        : 'تم نشر إعلانك - تواصل مباشر مع المهتمين';
-
-    Alert.alert('تم بنجاح', message, [
+    Alert.alert('تم بنجاح', 'تم نشر إعلانك بنجاح', [
       { text: 'حسناً', onPress: () => router.back() },
     ]);
   };
-
-  const handleDeliveryFormSubmit = async () => {
-    if (!pickupAddress.trim() || !dropoffAddress.trim()) {
-      Alert.alert('خطأ', 'الرجاء إدخال عناوين الاستلام والتسليم');
-      return;
-    }
-    await supabase.from('delivery_requests').insert({
-      post_id: createdListingId,
-      requester_id: profile!.id,
-      pickup_address: pickupAddress.trim(),
-      dropoff_address: dropoffAddress.trim(),
-      status: 'pending',
-    });
-    Alert.alert('تم بنجاح', 'تم نشر إعلانك وطلب مندوب التوصيل', [
-      { text: 'حسناً', onPress: () => router.back() },
-    ]);
-  };
-
-  if (submitted && showDeliveryForm) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.navBar}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <ChevronLeft size={24} color={Colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.navTitle}>طلب مندوب توصيل</Text>
-          <View style={{ width: 24 }} />
-        </View>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          <View style={styles.successCircle}>
-            <Check size={32} color={Colors.white} />
-          </View>
-          <Text style={styles.successTitle}>تم نشر الإعلان!</Text>
-          <Text style={styles.fieldLabel}>عنوان الاستلام</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="أدخل عنوان الاستلام"
-            placeholderTextColor={Colors.neutral[400]}
-            value={pickupAddress}
-            onChangeText={setPickupAddress}
-            textAlign="right"
-          />
-          <Text style={styles.fieldLabel}>عنوان التسليم</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="أدخل عنوان التسليم"
-            placeholderTextColor={Colors.neutral[400]}
-            value={dropoffAddress}
-            onChangeText={setDropoffAddress}
-            textAlign="right"
-          />
-          <TouchableOpacity style={styles.submitBtn} onPress={handleDeliveryFormSubmit} activeOpacity={0.8}>
-            <Text style={styles.submitBtnText}>إرسال طلب المندوب</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  if (submitted) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.successHeader}>
-          <View style={styles.successCircle}>
-            <Check size={40} color={Colors.white} />
-          </View>
-          <Text style={styles.successTitle}>تم نشر إعلانك بنجاح!</Text>
-          <Text style={styles.successSub}>اختر طريقة التسليم</Text>
-        </View>
-
-        <View style={styles.deliverySection}>
-          <TouchableOpacity style={styles.deliveryCard} onPress={() => handleDeliveryChoice('pickup')} activeOpacity={0.7}>
-            <View style={styles.deliveryIconCircle}>
-              <User size={28} color={Colors.primary[600]} />
-            </View>
-            <View style={styles.deliveryTextBlock}>
-              <Text style={styles.deliveryName}>استلام شخصي</Text>
-              <Text style={styles.deliveryDesc}>استلم المنتج بنفسك من الموقع</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.deliveryCard} onPress={() => handleDeliveryChoice('delivery_agent')} activeOpacity={0.7}>
-            <View style={styles.deliveryIconCircle}>
-              <Truck size={28} color={Colors.primary[600]} />
-            </View>
-            <View style={styles.deliveryTextBlock}>
-              <Text style={styles.deliveryName}>طلب مندوب</Text>
-              <Text style={styles.deliveryDesc}>اطلب مندوب توصيل لاستلام المنتج</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.deliveryCard} onPress={() => handleDeliveryChoice('direct_contact')} activeOpacity={0.7}>
-            <View style={styles.deliveryIconCircle}>
-              <MessageCircle size={28} color={Colors.primary[600]} />
-            </View>
-            <View style={styles.deliveryTextBlock}>
-              <Text style={styles.deliveryName}>تواصل مباشر</Text>
-              <Text style={styles.deliveryDesc}>تواصل مع صاحب الإعلان مباشرة</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -457,6 +329,30 @@ export default function AddPostScreen() {
           textAlign="right"
         />
 
+        {/* طريقة التسليم */}
+        <Text style={styles.fieldLabel}>طريقة التسليم</Text>
+        <View style={styles.deliveryList}>
+          {DELIVERY_OPTIONS.map(({ value, label, icon: Icon }) => {
+            const active = deliveryMethod === value;
+            return (
+              <TouchableOpacity
+                key={value}
+                style={[styles.deliveryOption, active && styles.deliveryOptionActive]}
+                onPress={() => setDeliveryMethod(value)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.deliveryOptionLeft}>
+                  {active && <Check size={16} color={Colors.primary[600]} />}
+                </View>
+                <View style={styles.deliveryOptionRight}>
+                  <Icon size={18} color={active ? Colors.primary[600] : Colors.neutral[500]} />
+                  <Text style={[styles.deliveryOptionText, active && styles.deliveryOptionTextActive]}>{label}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {/* الصورة */}
         <Text style={styles.fieldLabel}>صورة الإعلان</Text>
         <View style={styles.imageSection}>
@@ -534,7 +430,6 @@ const styles = StyleSheet.create({
   typeBtnFree: { backgroundColor: '#059669', borderColor: '#059669' },
   typeBtnText: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text },
   typeBtnTextActive: { color: Colors.white },
-
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -551,7 +446,6 @@ const styles = StyleSheet.create({
   toggleLabel: { fontSize: FontSizes.md, fontWeight: '700', color: Colors.text, textAlign: 'right' },
   toggleSub: { fontSize: FontSizes.xs, color: Colors.textSecondary, textAlign: 'right', marginTop: 2 },
   urgentLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-
   textInput: {
     backgroundColor: Colors.white, borderWidth: 1.5, borderColor: Colors.border,
     borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md,
@@ -578,6 +472,23 @@ const styles = StyleSheet.create({
   cityChipActive: { backgroundColor: Colors.primary[600], borderColor: Colors.primary[600] },
   cityChipText: { fontSize: FontSizes.sm, color: Colors.textSecondary },
   cityChipTextActive: { color: Colors.white, fontWeight: '600' },
+  deliveryList: { gap: Spacing.sm },
+  deliveryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  deliveryOptionActive: { borderColor: Colors.primary[600], backgroundColor: Colors.primary[50] },
+  deliveryOptionLeft: { width: 20, alignItems: 'center' },
+  deliveryOptionRight: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.sm },
+  deliveryOptionText: { fontSize: FontSizes.md, color: Colors.textSecondary, textAlign: 'right' },
+  deliveryOptionTextActive: { color: Colors.primary[700], fontWeight: '600' },
   imageSection: { alignItems: 'center' },
   imagePreviewWrapper: { position: 'relative', width: '100%' },
   imagePreview: { width: '100%', height: 200, borderRadius: BorderRadius.lg, resizeMode: 'cover' },
@@ -604,28 +515,4 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.6 },
   submitBtnText: { color: Colors.white, fontSize: FontSizes.lg, fontWeight: '700' },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  successHeader: {
-    alignItems: 'center', paddingTop: Spacing.xxl, paddingBottom: Spacing.xl,
-    backgroundColor: Colors.primary[50],
-    borderBottomLeftRadius: BorderRadius.xl, borderBottomRightRadius: BorderRadius.xl,
-  },
-  successCircle: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.primary[600],
-    justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.md,
-  },
-  successTitle: { fontSize: FontSizes.xl, fontWeight: '700', color: Colors.text, marginBottom: Spacing.xs },
-  successSub: { fontSize: FontSizes.md, color: Colors.textSecondary },
-  deliverySection: { padding: Spacing.lg, gap: Spacing.md },
-  deliveryCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white,
-    borderWidth: 1.5, borderColor: Colors.border, borderRadius: BorderRadius.lg,
-    padding: Spacing.md, gap: Spacing.md,
-  },
-  deliveryIconCircle: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: Colors.primary[50], justifyContent: 'center', alignItems: 'center',
-  },
-  deliveryTextBlock: { flex: 1, alignItems: 'flex-end' },
-  deliveryName: { fontSize: FontSizes.lg, fontWeight: '700', color: Colors.text, textAlign: 'right' },
-  deliveryDesc: { fontSize: FontSizes.sm, color: Colors.textSecondary, textAlign: 'right', marginTop: 2 },
 });

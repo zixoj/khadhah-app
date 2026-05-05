@@ -197,6 +197,15 @@ export default function FreeScreen() {
     }
   };
 
+  const openConfirmedChat = async (listingId: string) => {
+    const { data } = await supabase.rpc('get_my_chat_room', { p_listing_id: listingId });
+    if (data?.found && data.room_id) {
+      router.push(`/chat?room=${data.room_id}`);
+    } else {
+      router.push(`/post-detail?id=${listingId}`);
+    }
+  };
+
   const renderItem = ({ item }: { item: Listing }) => {
     const isMyListing = profile?.id === item.user_id;
     const isTaken = item.status === 'taken';
@@ -287,7 +296,7 @@ export default function FreeScreen() {
                   {myRes.status === 'confirmed' && (
                     <TouchableOpacity
                       style={styles.chatBtn}
-                      onPress={() => router.push(`/post-detail?id=${item.id}`)}
+                      onPress={() => openConfirmedChat(item.id)}
                     >
                       <Text style={styles.chatBtnText}>فتح المحادثة</Text>
                     </TouchableOpacity>
