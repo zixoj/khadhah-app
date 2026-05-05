@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   Modal,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
@@ -64,6 +65,7 @@ export default function MyListingsScreen() {
   };
 
   const confirmDelete = (id: string) => {
+    console.log('DELETE CLICKED', id);
     setConfirmId(id);
     setDeleteError(null);
     setDeleteSuccess(false);
@@ -72,6 +74,7 @@ export default function MyListingsScreen() {
   const handleDelete = async () => {
     if (!confirmId) return;
     const idToDelete = confirmId;
+    console.log('CONFIRMED DELETE', idToDelete);
     setDeletingId(idToDelete);
     setDeleteError(null);
 
@@ -89,14 +92,14 @@ export default function MyListingsScreen() {
       return;
     }
 
-    // RLS can silently block deletes (no error, but no rows deleted)
     if (!deleted || deleted.length === 0) {
-      console.warn('[delete listing] no rows deleted — possible RLS block or wrong owner');
+      console.warn('[delete listing] no rows deleted — RLS may be blocking or id mismatch');
       setDeleteError('تعذر حذف الإعلان');
       setDeletingId(null);
       return;
     }
 
+    console.log('DELETE SUCCESS', idToDelete);
     supabase.from('activity_log').insert({
       user_id: profile!.id,
       action: 'listing_deleted',
@@ -114,7 +117,11 @@ export default function MyListingsScreen() {
     const isExchange = item.type === 'exchange';
     return (
       <View style={[styles.card, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E0E0E0' }]}>
-        <TouchableOpacity onPress={() => router.push(`/post-detail?id=${item.id}`)} activeOpacity={0.8}>
+        {/* Image — tappable to open detail */}
+        <Pressable
+          onPress={() => router.push(`/post-detail?id=${item.id}`)}
+          style={styles.cardImageWrap}
+        >
           {item.image_url ? (
             <Image source={{ uri: item.image_url }} style={styles.cardImage} />
           ) : (
@@ -125,7 +132,9 @@ export default function MyListingsScreen() {
               }
             </View>
           )}
-        </TouchableOpacity>
+        </Pressable>
+
+        {/* Body */}
         <View style={styles.cardBody}>
           <Text style={[styles.cardTitle, { color: C.text }]} numberOfLines={2}>{item.title}</Text>
           <View style={styles.cardMeta}>
@@ -143,16 +152,26 @@ export default function MyListingsScreen() {
               <Text style={[styles.viewsText, { color: C.textMuted }]}>{item.views_count || 0}</Text>
             </View>
           </View>
-          <View style={styles.cardActions}>
-            <TouchableOpacity
-              style={[styles.deleteBtn, { backgroundColor: isDark ? 'rgba(255,59,48,0.10)' : '#FFF5F5', borderColor: isDark ? 'rgba(255,59,48,0.25)' : '#FECACA' }]}
-              onPress={() => confirmDelete(item.id)}
-              activeOpacity={0.7}
-            >
-              <Trash2 size={15} color={C.error} />
-              <Text style={[styles.deleteBtnText, { color: C.error }]}>حذف</Text>
-            </TouchableOpacity>
-          </View>
+
+          {/* Delete button — standalone Pressable, no nesting issues */}
+          <Pressable
+            onPress={() => {
+              console.log('DELETE CLICKED', item.id);
+              confirmDelete(item.id);
+            }}
+            style={({ pressed }) => [
+              styles.deleteBtn,
+              {
+                backgroundColor: pressed
+                  ? (isDark ? 'rgba(255,59,48,0.20)' : '#FFE5E5')
+                  : (isDark ? 'rgba(255,59,48,0.10)' : '#FFF5F5'),
+                borderColor: isDark ? 'rgba(255,59,48,0.30)' : '#FECACA',
+              },
+            ]}
+          >
+            <Trash2 size={15} color={C.error} />
+            <Text style={[styles.deleteBtnText, { color: C.error }]}>حذف</Text>
+          </Pressable>
         </View>
       </View>
     );
@@ -292,7 +311,10 @@ const styles = StyleSheet.create({
   listContent: { padding: Spacing.md, paddingBottom: 100 },
   row: { gap: Spacing.md, marginBottom: Spacing.md },
   card: {
-    flex: 1, borderRadius: 16, overflow: 'hidden', borderWidth: 1,
+    flex: 1, borderRadius: 16, borderWidth: 1,
+  },
+  cardImageWrap: {
+    borderTopLeftRadius: 16, borderTopRightRadius: 16, overflow: 'hidden',
   },
   cardImage: { width: '100%', height: 100, resizeMode: 'cover' },
   cardImagePlaceholder: { width: '100%', height: 100, justifyContent: 'center', alignItems: 'center' },
@@ -303,10 +325,10 @@ const styles = StyleSheet.create({
   typePillText: { fontSize: FontSizes.xs, fontWeight: '700' },
   viewsRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   viewsText: { fontSize: FontSizes.xs },
-  cardActions: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 2 },
   deleteBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+    marginTop: 2, alignSelf: 'flex-end',
   },
   deleteBtnText: { fontSize: FontSizes.xs, fontWeight: '700' },
   fab: {
