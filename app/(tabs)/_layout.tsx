@@ -3,7 +3,7 @@ import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, ArrowLeftRight, Gift, Truck, User } from 'lucide-react-native';
+import { Home, ArrowLeftRight, Gift, Truck, MoreHorizontal } from 'lucide-react-native';
 
 export default function TabLayout() {
   const { session, profile, loading } = useAuth();
@@ -44,7 +44,7 @@ export default function TabLayout() {
           left: 0,
           right: 0,
           zIndex: 9999,
-          shadowColor: isDark ? '#000' : '#000',
+          shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
           shadowOpacity: isDark ? 0.6 : 0.06,
           shadowRadius: isDark ? 20 : 10,
@@ -88,11 +88,16 @@ export default function TabLayout() {
           }}
         />
       )}
+      {/* Hide profile from tab bar — accessible via المزيد sheet */}
       <Tabs.Screen
         name="profile"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="more"
         options={{
-          title: 'حسابي',
-          tabBarIcon: ({ size, color }) => <User size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
+          title: 'المزيد',
+          tabBarIcon: ({ size, color }) => <MoreHorizontal size={size - 2} color={color} strokeWidth={color === colors.primary ? 2.5 : 1.8} />,
         }}
       />
     </Tabs>
