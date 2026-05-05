@@ -22,13 +22,14 @@ interface Props {
 
 export default function PhoneVerifyModal({ visible, currentPhone, onClose, onVerified }: Props) {
   const { colors: C, isDark } = useTheme();
-  const { step, errorMsg, sendOtp, verifyOtp, reset } = usePhoneVerification();
+  const { step, errorMsg, sendOtp, verifyOtp, reset, isDevMode } = usePhoneVerification();
   const [phone, setPhone] = useState(currentPhone || '');
   const [otp, setOtp] = useState('');
 
   const handleSend = async () => {
     if (!phone.trim()) return;
-    await sendOtp(phone.trim());
+    const ok = await sendOtp(phone.trim());
+    if (ok && isDevMode) onVerified();
   };
 
   const handleVerify = async () => {
@@ -74,7 +75,14 @@ export default function PhoneVerifyModal({ visible, currentPhone, onClose, onVer
                 <ShieldCheck size={36} color="#000" />
               </View>
               <Text style={[styles.successTitle, { color: C.text }]}>تم التوثيق بنجاح!</Text>
-              <Text style={[styles.successSub, { color: C.textSecondary }]}>رقمك الآن موثق</Text>
+              <Text style={[styles.successSub, { color: C.textSecondary }]}>
+                {isDevMode ? 'تم توثيق رقم الجوال (وضع تجريبي)' : 'رقمك الآن موثق'}
+              </Text>
+              {isDevMode && (
+                <View style={[styles.devBadge, { backgroundColor: isDark ? 'rgba(255,159,10,0.12)' : '#FFFBEB', borderColor: isDark ? 'rgba(255,159,10,0.30)' : '#FDE68A' }]}>
+                  <Text style={[styles.devBadgeText, { color: isDark ? '#FF9F0A' : '#92400E' }]}>وضع تجريبي — لم يُرسَل رمز SMS</Text>
+                </View>
+              )}
             </View>
 
           /* OTP entry */
@@ -226,4 +234,12 @@ const styles = StyleSheet.create({
   },
   successTitle: { fontSize: FontSizes.xl, fontWeight: '700' },
   successSub: { fontSize: FontSizes.md },
+  devBadge: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  devBadgeText: { fontSize: FontSizes.xs, fontWeight: '600', textAlign: 'center' },
 });
