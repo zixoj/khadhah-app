@@ -266,6 +266,8 @@ export default function PostDetailScreen() {
       const reason = data?.reason as string;
       if (reason === 'self_chat') {
         Alert.alert('تنبيه', 'لا يمكنك مراسلة نفسك');
+      } else if (reason === 'listing_unavailable') {
+        Alert.alert('غير متاح', 'هذا الإعلان لم يعد متاحاً للتواصل');
       } else {
         Alert.alert('خطأ', 'تعذّر فتح المحادثة، حاول مرة أخرى');
       }
