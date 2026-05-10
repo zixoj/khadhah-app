@@ -162,7 +162,6 @@ export default function EditProfileScreen() {
       p_username: username.trim() || null,
       p_phone: phone.trim(),
       p_city: city,
-      p_role: role,
       p_avatar_url: avatarUrl || null,
     });
 
