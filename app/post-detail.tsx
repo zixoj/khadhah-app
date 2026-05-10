@@ -11,8 +11,10 @@ import {
   Alert,
   Linking,
   Modal,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -91,6 +93,7 @@ export default function PostDetailScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const [listing, setListing] = useState<Listing | null>(null);
   const [owner, setOwner] = useState<OwnerProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,6 +112,7 @@ export default function PostDetailScreen() {
   const [hasReported, setHasReported] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [myChatRoomId, setMyChatRoomId] = useState<string | null>(null);
+  const [openingChat, setOpeningChat] = useState(false);
 
   const fetchListing = useCallback(async () => {
     const { data } = await supabase.from('listings').select('*').eq('id', id).maybeSingle();
@@ -239,6 +243,39 @@ export default function PostDetailScreen() {
     Alert.alert('شكراً', 'تم إرسال بلاغك وسنراجعه في أقرب وقت');
   };
 
+  const handleDirectChat = async () => {
+    if (!profile) {
+      router.push('/(auth)/login');
+      return;
+    }
+    if (!listing) return;
+
+    // If room already exists, go straight there
+    if (myChatRoomId) {
+      router.push(`/chat?room=${myChatRoomId}`);
+      return;
+    }
+
+    setOpeningChat(true);
+    const { data, error } = await supabase.rpc('open_chat_room_as_buyer', {
+      p_listing_id: listing.id,
+    });
+    setOpeningChat(false);
+
+    if (error || !data?.success) {
+      const reason = data?.reason as string;
+      if (reason === 'self_chat') {
+        Alert.alert('تنبيه', 'لا يمكنك مراسلة نفسك');
+      } else {
+        Alert.alert('خطأ', 'تعذّر فتح المحادثة، حاول مرة أخرى');
+      }
+      return;
+    }
+
+    setMyChatRoomId(data.room_id);
+    router.push(`/chat?room=${data.room_id}`);
+  };
+
   const C = colors;
 
   if (loading) return <View style={[styles.centerContent, { backgroundColor: C.background }]}><ActivityIndicator size="large" color={C.primary} /></View>;
@@ -262,7 +299,7 @@ export default function PostDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
       {/* Nav */}
-      <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
+      <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2', paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
           <ChevronLeft size={22} color={C.text} />
         </TouchableOpacity>
@@ -437,12 +474,37 @@ export default function PostDetailScreen() {
                 )}
               </View>
             )}
-            {myChatRoomId && (
-              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: isDark ? `${C.exchange}18` : C.exchange, borderColor: C.exchange, borderWidth: isDark ? 1 : 0 }]} onPress={() => router.push(`/chat?room=${myChatRoomId}`)}>
+
+            {/* ── تواصل مباشر button — always shown for non-owner ── */}
+            {listing.delivery_method === 'direct_contact' && (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.primaryActionBtn, { backgroundColor: C.primary, shadowColor: C.primary, opacity: openingChat ? 0.75 : 1 }]}
+                onPress={handleDirectChat}
+                activeOpacity={0.82}
+                disabled={openingChat}
+              >
+                {openingChat
+                  ? <ActivityIndicator color="#000" size="small" />
+                  : <MessageCircle size={20} color="#000" strokeWidth={2.5} />
+                }
+                <Text style={styles.primaryActionBtnText}>
+                  {myChatRoomId ? 'فتح المحادثة' : (openingChat ? 'جاري الفتح...' : 'تواصل مباشر')}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Open existing chat room (for any delivery method after approval) */}
+            {myChatRoomId && listing.delivery_method !== 'direct_contact' && (
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: isDark ? `${C.exchange}18` : C.exchange, borderColor: C.exchange, borderWidth: isDark ? 1 : 0 }]}
+                onPress={() => router.push(`/chat?room=${myChatRoomId}`)}
+                activeOpacity={0.8}
+              >
                 <MessageSquare size={18} color={isDark ? C.exchange : '#fff'} />
                 <Text style={[styles.actionBtnText, { color: isDark ? C.exchange : '#fff' }]}>فتح المحادثة</Text>
               </TouchableOpacity>
             )}
+
             {canWhatsApp && (
               <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#25D366' }]} onPress={openWhatsApp} activeOpacity={0.8}>
                 <Phone size={18} color="#fff" />
@@ -562,7 +624,7 @@ export default function PostDetailScreen() {
           </View>
         ) : null}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: insets.bottom + 100 }} />
       </ScrollView>
 
       {/* Report Modal */}
@@ -606,7 +668,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   navBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.lg, paddingBottom: Spacing.md,
     borderBottomWidth: 1,
   },
   navTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
@@ -685,6 +747,16 @@ const styles = StyleSheet.create({
     gap: Spacing.sm, borderRadius: BorderRadius.md, paddingVertical: 14,
   },
   actionBtnText: { fontSize: FontSizes.lg, fontWeight: '700' },
+  primaryActionBtn: {
+    paddingVertical: 17,
+    borderRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 6,
+    zIndex: 10,
+  },
+  primaryActionBtnText: { fontSize: FontSizes.lg, fontWeight: '800', color: '#000' },
 
   deliveryForm: { gap: Spacing.md, borderWidth: 1, borderRadius: BorderRadius.xl, padding: Spacing.md },
   formTitle: { fontSize: FontSizes.md, fontWeight: '700', textAlign: 'right' },

@@ -127,7 +127,7 @@ export default function ConversationsScreen() {
                 <MessageSquare size={40} color={C.textMuted} />
               </View>
               <Text style={[styles.emptyTitle, { color: C.text }]}>لا توجد محادثات بعد</Text>
-              <Text style={[styles.emptySub, { color: C.textSecondary }]}>ستظهر محادثاتك هنا بعد القبول على عرض أو حجز</Text>
+              <Text style={[styles.emptySub, { color: C.textSecondary }]}>ستظهر هنا محادثاتك مع أصحاب الإعلانات عند التواصل معهم</Text>
             </View>
           }
         />
