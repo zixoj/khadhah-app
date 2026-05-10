@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -66,7 +67,12 @@ export default function ConversationsScreen() {
     setLoading(false);
   }, [profile]);
 
-  useEffect(() => { fetchRooms(); }, [fetchRooms]);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchRooms();
+    }, [fetchRooms])
+  );
 
   const renderItem = ({ item }: { item: ConversationRow }) => (
     <TouchableOpacity
