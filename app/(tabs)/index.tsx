@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Image,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -13,7 +14,7 @@ import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { Spacing, FontSizes } from '@/lib/theme';
-import { ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin, Heart } from 'lucide-react-native';
+import { ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin, Heart, Search } from 'lucide-react-native';
 
 interface RecentListing {
   id: string;
@@ -46,6 +47,7 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const { colors: C, isDark } = useTheme();
   const [recent, setRecent] = useState<RecentListing[]>([]);
+  const [searchInput, setSearchInput] = useState('');
 
   const loadRecent = useCallback(() => {
     supabase
@@ -87,6 +89,21 @@ export default function HomeScreen() {
             اعرض أغراضك مجانًا أو بدّلها بما تحتاجه
           </Text>
         </View>
+
+        {/* ── Search bar ── */}
+        <TouchableOpacity
+          style={[
+            styles.searchBar,
+            { backgroundColor: isDark ? C.card : '#F4F7FA', borderColor: isDark ? C.border : '#E0E8EF' },
+          ]}
+          onPress={() => router.push(searchInput.trim() ? `/search?q=${encodeURIComponent(searchInput.trim())}` : '/search')}
+          activeOpacity={0.85}
+        >
+          <Search size={16} color={C.textMuted} />
+          <Text style={[styles.searchPlaceholder, { color: C.textMuted }]}>
+            ابحث عن إعلانات، مدن، فئات...
+          </Text>
+        </TouchableOpacity>
 
         {/* ── Two main cards ── */}
         <View style={styles.cardRow}>
@@ -301,6 +318,14 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     lineHeight: 24,
   },
+
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: Spacing.lg, marginBottom: Spacing.md,
+    paddingHorizontal: 14, paddingVertical: 13,
+    borderRadius: 16, borderWidth: 1,
+  },
+  searchPlaceholder: { fontSize: FontSizes.md, flex: 1, textAlign: 'right' },
 
   cardRow: {
     flexDirection: 'row',

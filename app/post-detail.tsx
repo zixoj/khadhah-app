@@ -405,9 +405,13 @@ export default function PostDetailScreen() {
           {listing.description ? <Text style={[styles.description, { color: C.textSecondary }]}>{listing.description}</Text> : null}
         </View>
 
-        {/* Owner card */}
+        {/* Owner card — tappable to open public profile */}
         {owner && (
-          <View style={[styles.ownerCard, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E8EDF2' }]}>
+          <TouchableOpacity
+            style={[styles.ownerCard, { backgroundColor: C.card, borderColor: isDark ? C.cardBorder : '#E8EDF2' }]}
+            onPress={() => !isOwner && router.push(`/user-profile?id=${listing.user_id}`)}
+            activeOpacity={isOwner ? 1 : 0.82}
+          >
             <View style={styles.ownerInfo}>
               <View style={[styles.ownerAvatar, { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}>
                 {owner.avatar_url
@@ -440,8 +444,13 @@ export default function PostDetailScreen() {
                   <Text style={[styles.ownerListings, { color: C.textSecondary }]}>{owner.listings_count} إعلان</Text>
                 </View>
               </View>
+              {!isOwner && (
+                <View style={[styles.viewProfileBtn, { backgroundColor: C.primary + '15', borderColor: C.primary + '40' }]}>
+                  <Text style={[styles.viewProfileText, { color: C.primary }]}>عرض الملف</Text>
+                </View>
+              )}
             </View>
-          </View>
+          </TouchableOpacity>
         )}
 
         {/* Delivery method */}
@@ -801,4 +810,6 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: Spacing.md, borderBottomWidth: 1, marginBottom: Spacing.md },
   modalTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
   reportInput: { borderWidth: 1.5, borderRadius: BorderRadius.md, padding: Spacing.md, fontSize: FontSizes.md, minHeight: 80, textAlign: 'right' },
+  viewProfileBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, borderWidth: 1, alignSelf: 'center' },
+  viewProfileText: { fontSize: 12, fontWeight: '700' },
 });
