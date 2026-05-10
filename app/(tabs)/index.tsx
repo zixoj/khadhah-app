@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -46,7 +47,7 @@ export default function HomeScreen() {
   const { colors: C, isDark } = useTheme();
   const [recent, setRecent] = useState<RecentListing[]>([]);
 
-  useEffect(() => {
+  const loadRecent = useCallback(() => {
     supabase
       .from('listings')
       .select('id, title, type, city, image_url, is_urgent, created_at, status')
@@ -55,6 +56,8 @@ export default function HomeScreen() {
       .limit(6)
       .then(({ data }) => { if (data) setRecent(data); });
   }, []);
+
+  useFocusEffect(loadRecent);
 
   const firstName = profile?.full_name ? profile.full_name.split(' ')[0] : 'صديقي';
 

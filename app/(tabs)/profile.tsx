@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, Pressable, StyleSheet, ScrollView, Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -29,9 +30,11 @@ export default function ProfileScreen() {
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [phoneModalVisible, setPhoneModalVisible] = useState(false);
 
-  useEffect(() => {
-    if (baseProfile?.id) { fetchProfile(); fetchCounts(); }
-  }, [baseProfile?.id]);
+  useFocusEffect(
+    useCallback(() => {
+      if (baseProfile?.id) { fetchProfile(); fetchCounts(); }
+    }, [baseProfile?.id])
+  );
 
   const fetchProfile = async () => {
     const { data } = await supabase.from('profiles').select('*').eq('id', baseProfile!.id).maybeSingle();

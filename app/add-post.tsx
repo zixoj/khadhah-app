@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,10 @@ import {
   ActivityIndicator,
   Platform,
   Switch,
+  Animated,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
@@ -19,7 +21,8 @@ import { supabase } from '@/lib/supabase';
 import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import {
   ChevronLeft, Camera, MapPin, Check, Truck, User,
-  MessageCircle, ArrowLeftRight, Gift, X, PawPrint, Flame,
+  MessageCircle, ArrowLeftRight, Gift, X, Flame, Plus,
+  CheckCircle,
 } from 'lucide-react-native';
 
 const CITIES = [
@@ -49,21 +52,24 @@ const DELIVERY_OPTIONS = [
 
 type PostType = 'exchange' | 'free';
 type DeliveryMethod = 'pickup' | 'delivery_agent' | 'direct_contact';
+type SubmitStep = 'idle' | 'uploading' | 'saving' | 'success';
 
 const RPC_ERRORS: Record<string, string> = {
   missing_title: 'الرجاء إدخال عنوان الإعلان',
   missing_category: 'الرجاء اختيار التصنيف',
   missing_city: 'الرجاء اختيار المدينة',
   invalid_type: 'نوع الإعلان غير صحيح',
-  daily_limit_reached: 'لقد وصلت إلى الحد اليومي (إعلانان يومياً). حاول غداً.',
+  daily_limit_reached: 'وصلت للحد اليومي (إعلانان/يوم). حاول غداً.',
 };
+
+const MAX_IMAGES = 5;
 
 export default function AddPostScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { type: typeParam } = useLocalSearchParams<{ type: string }>();
   const { profile } = useAuth();
-  const { colors, isDark } = useTheme();
-  const C = colors;
+  const { colors: C, isDark } = useTheme();
 
   const [postType, setPostType] = useState<PostType>(typeParam === 'free' ? 'free' : 'exchange');
   const [category, setCategory] = useState('');
@@ -72,33 +78,41 @@ export default function AddPostScreen() {
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState(profile?.phone || '');
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('direct_contact');
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [images, setImages] = useState<string[]>([]);
+  const [step, setStep] = useState<SubmitStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isUrgent, setIsUrgent] = useState(false);
   const [dualMode, setDualMode] = useState(false);
 
-  const pickImage = async () => {
+  const successScale = useRef(new Animated.Value(0.7)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
+
+  const isLoading = step === 'uploading' || step === 'saving';
+
+  const pickImages = async () => {
+    if (images.length >= MAX_IMAGES) return;
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        setError('يرجى السماح بالوصول إلى الصور');
-        return;
-      }
+      if (status !== 'granted') { setError('يرجى السماح بالوصول إلى الصور'); return; }
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_IMAGES - images.length,
       quality: 0.8,
     });
-    if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
+    if (!result.canceled && result.assets.length > 0) {
+      const newUris = result.assets.map((a) => a.uri);
+      setImages((prev) => [...prev, ...newUris].slice(0, MAX_IMAGES));
+    }
+  };
+
+  const removeImage = (idx: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const uploadImage = async (uri: string): Promise<string> => {
-    // Path must be under user's own folder for storage RLS: {userId}/{filename}
-    const filename = `${profile!.id}/${Date.now()}.jpg`;
+    const filename = `${profile!.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
     const response = await fetch(uri);
     const blob = await response.blob();
     const { data, error: uploadError } = await supabase.storage
@@ -110,28 +124,28 @@ export default function AddPostScreen() {
   };
 
   const handleSubmit = async () => {
+    setError(null);
     if (!title.trim()) { setError('الرجاء إدخال عنوان الإعلان'); return; }
     if (!category) { setError('الرجاء اختيار التصنيف'); return; }
     if (!city) { setError('الرجاء اختيار المدينة'); return; }
     if (!phone.trim()) { setError('الرجاء إدخال رقم الهاتف'); return; }
 
-    setLoading(true);
-    setError(null);
-
-    let finalImageUrl = '';
-    if (imageUri) {
-      setUploading(true);
+    // Upload images
+    let uploadedUrls: string[] = [];
+    if (images.length > 0) {
+      setStep('uploading');
       try {
-        finalImageUrl = await uploadImage(imageUri);
+        uploadedUrls = await Promise.all(images.map(uploadImage));
       } catch (err: any) {
+        setStep('idle');
         setError('فشل رفع الصورة: ' + (err.message || 'خطأ غير معروف'));
-        setLoading(false);
-        setUploading(false);
         return;
       }
-      setUploading(false);
     }
 
+    setStep('saving');
+
+    // Create the listing (first image as main image_url)
     const { data, error: rpcError } = await supabase.rpc('create_listing', {
       p_title: title.trim(),
       p_description: description.trim(),
@@ -140,201 +154,357 @@ export default function AddPostScreen() {
       p_city: city,
       p_phone: phone.trim(),
       p_delivery_method: deliveryMethod,
-      p_image_url: finalImageUrl,
+      p_image_url: uploadedUrls[0] || '',
       p_is_urgent: isUrgent,
       p_dual_mode: dualMode,
     });
 
-    setLoading(false);
-
     if (rpcError) {
+      setStep('idle');
       setError(rpcError.message || 'حدث خطأ أثناء النشر');
       return;
     }
 
     if (!data?.success) {
-      const reason = data?.reason as string;
-      setError(RPC_ERRORS[reason] || 'حدث خطأ أثناء النشر');
+      setStep('idle');
+      setError(RPC_ERRORS[data?.reason as string] || 'حدث خطأ أثناء النشر');
       return;
     }
 
-    router.back();
+    // Store additional images in post_images table (images 2–5)
+    if (uploadedUrls.length > 1 && data.listing_id) {
+      const extraImages = uploadedUrls.slice(1).map((url, idx) => ({
+        post_id: data.listing_id,
+        image_url: url,
+        sort_order: idx + 1,
+      }));
+      await supabase.from('post_images').insert(extraImages);
+    }
+
+    setStep('success');
+    Animated.parallel([
+      Animated.spring(successScale, { toValue: 1, useNativeDriver: true, tension: 60, friction: 9 }),
+      Animated.timing(successOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start();
   };
+
+  const handleDone = () => {
+    router.replace('/(tabs)/');
+  };
+
+  const handleViewListing = () => {
+    router.replace('/(tabs)/');
+  };
+
+  // ── Success screen ────────────────────────────────────────────────────────
+  if (step === 'success') {
+    return (
+      <View style={[styles.successContainer, { backgroundColor: C.background, paddingTop: insets.top }]}>
+        <Animated.View style={[styles.successInner, { opacity: successOpacity, transform: [{ scale: successScale }] }]}>
+          <View style={[styles.successIconWrap, { backgroundColor: isDark ? 'rgba(0,200,83,0.12)' : '#ECFDF5', borderColor: isDark ? 'rgba(0,200,83,0.25)' : '#A7F3D0' }]}>
+            <CheckCircle size={64} color={C.primary} strokeWidth={1.5} />
+          </View>
+          <Text style={[styles.successTitle, { color: C.text }]}>تم نشر إعلانك!</Text>
+          <Text style={[styles.successSub, { color: C.textSecondary }]}>
+            ظهر إعلانك الآن في الصفحة الرئيسية وفي قسم إعلاناتي
+          </Text>
+          <View style={styles.successDetails}>
+            {[
+              { label: 'العنوان', value: title },
+              { label: 'النوع', value: postType === 'free' ? 'خذه مجاناً' : 'بدّل' },
+              { label: 'المدينة', value: city },
+            ].map((row) => (
+              <View key={row.label} style={[styles.successDetailRow, { borderBottomColor: isDark ? 'rgba(255,255,255,0.07)' : '#F0F0F0' }]}>
+                <Text style={[styles.successDetailVal, { color: C.text }]}>{row.value}</Text>
+                <Text style={[styles.successDetailKey, { color: C.textSecondary }]}>{row.label}</Text>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity
+            style={[styles.doneBtn, { backgroundColor: C.primary, shadowColor: C.primary }]}
+            onPress={handleDone}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.doneBtnText}>العودة للرئيسية</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewBtn, { borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E0E0E0' }]}
+            onPress={handleViewListing}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.viewBtnText, { color: C.textSecondary }]}>إضافة إعلان آخر</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // ── Form ─────────────────────────────────────────────────────────────────
+  const inputBg = isDark ? C.card : '#FAFAFA';
+  const inputBorder = isDark ? C.cardBorder : '#E0E8EF';
+  const cardBg = isDark ? C.card : '#fff';
+  const activePrimary = isDark ? `${C.primary}18` : C.primary;
+  const activeExchange = isDark ? `rgba(59,130,246,0.15)` : '#2563EB';
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
-      <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
-        <TouchableOpacity onPress={() => router.back()} style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
+      {/* Nav bar */}
+      <View style={[styles.navBar, { backgroundColor: isDark ? C.navBar : '#fff', borderBottomColor: isDark ? C.border : '#EBEBEB', paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => router.back()} style={[styles.navIconBtn, { backgroundColor: isDark ? '#1A2020' : '#F4F7FA' }]}>
           <ChevronLeft size={22} color={C.text} />
         </TouchableOpacity>
         <Text style={[styles.navTitle, { color: C.text }]}>إعلان جديد</Text>
         <View style={{ width: 38 }} />
       </View>
 
-      <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 32 }]}
+      >
+        {/* Error */}
         {error && (
-          <View style={[styles.errorBox, { backgroundColor: C.errorBg, borderColor: C.error }]}>
-            <Text style={[styles.errorText, { color: C.error }]}>{error}</Text>
+          <View style={[styles.errorBox, { backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#FFF5F5', borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#FECACA' }]}>
+            <X size={14} color="#EF4444" />
+            <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
-        {/* نوع الإعلان */}
-        <Text style={[styles.fieldLabel, { color: C.text }]}>نوع الإعلان</Text>
+        {/* ── نوع الإعلان ── */}
+        <Text style={[styles.sectionLabel, { color: C.text }]}>نوع الإعلان</Text>
         <View style={styles.typeRow}>
           <TouchableOpacity
             style={[styles.typeBtn, {
-              backgroundColor: postType === 'exchange' ? (isDark ? 'rgba(59,130,246,0.15)' : '#2563EB') : (isDark ? C.card : '#fff'),
-              borderColor: postType === 'exchange' ? C.exchange : (isDark ? C.cardBorder : '#E0E8EF'),
+              backgroundColor: postType === 'exchange' ? activeExchange : cardBg,
+              borderColor: postType === 'exchange' ? C.exchange : inputBorder,
             }]}
-            onPress={() => setPostType('exchange')} activeOpacity={0.7}
+            onPress={() => setPostType('exchange')}
+            activeOpacity={0.75}
           >
             <ArrowLeftRight size={20} color={postType === 'exchange' ? (isDark ? C.exchange : '#fff') : C.textSecondary} />
             <Text style={[styles.typeBtnText, { color: postType === 'exchange' ? (isDark ? C.exchange : '#fff') : C.text }]}>بدّل</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.typeBtn, {
-              backgroundColor: postType === 'free' ? (isDark ? `${C.primary}18` : C.free) : (isDark ? C.card : '#fff'),
-              borderColor: postType === 'free' ? C.primary : (isDark ? C.cardBorder : '#E0E8EF'),
+              backgroundColor: postType === 'free' ? activePrimary : cardBg,
+              borderColor: postType === 'free' ? C.primary : inputBorder,
             }]}
-            onPress={() => setPostType('free')} activeOpacity={0.7}
+            onPress={() => setPostType('free')}
+            activeOpacity={0.75}
           >
             <Gift size={20} color={postType === 'free' ? (isDark ? C.primary : '#fff') : C.textSecondary} />
             <Text style={[styles.typeBtnText, { color: postType === 'free' ? (isDark ? C.primary : '#fff') : C.text }]}>خذه مجاناً</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Toggles */}
-        <View style={[styles.toggleRow, { backgroundColor: isDark ? C.card : '#fff', borderColor: isDark ? C.cardBorder : '#E0E8EF' }]}>
-          <Switch value={dualMode} onValueChange={setDualMode} trackColor={{ false: isDark ? C.border : '#E0E8EF', true: `${C.primary}44` }} thumbColor={dualMode ? C.primary : (isDark ? '#4A5568' : '#CBD5E0')} />
-          <View style={styles.toggleTextBlock}>
-            <Text style={[styles.toggleLabel, { color: C.text }]}>مجاني + قابل للتبديل</Text>
-            <Text style={[styles.toggleSub, { color: C.textSecondary }]}>يظهر في قسمي خذه وبدّل</Text>
-          </View>
-        </View>
-        <View style={[styles.toggleRow, { backgroundColor: isDark ? C.card : '#fff', borderColor: isDark ? 'rgba(255,71,87,0.2)' : '#FCA5A5' }]}>
-          <Switch value={isUrgent} onValueChange={setIsUrgent} trackColor={{ false: isDark ? C.border : '#E0E8EF', true: 'rgba(255,71,87,0.35)' }} thumbColor={isUrgent ? C.error : (isDark ? '#4A5568' : '#CBD5E0')} />
-          <View style={styles.toggleTextBlock}>
-            <View style={styles.urgentLabelRow}>
-              <Flame size={13} color={C.error} />
-              <Text style={[styles.toggleLabel, { color: C.error }]}>مستعجل</Text>
+        {/* ── Toggles ── */}
+        <View style={[styles.toggleCard, { backgroundColor: cardBg, borderColor: inputBorder }]}>
+          <View style={styles.toggleRow}>
+            <Switch
+              value={dualMode}
+              onValueChange={setDualMode}
+              trackColor={{ false: isDark ? '#2A3530' : '#E0E8EF', true: `${C.primary}55` }}
+              thumbColor={dualMode ? C.primary : (isDark ? '#4A5568' : '#CBD5E0')}
+            />
+            <View style={styles.toggleText}>
+              <Text style={[styles.toggleLabel, { color: C.text }]}>مجاني + قابل للتبديل</Text>
+              <Text style={[styles.toggleSub, { color: C.textSecondary }]}>يظهر في قسمي خذه وبدّل</Text>
             </View>
-            <Text style={[styles.toggleSub, { color: C.textSecondary }]}>يُعلَّم بشكل مميز لمدة 24 ساعة</Text>
+          </View>
+          <View style={[styles.toggleDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F0F0F0' }]} />
+          <View style={styles.toggleRow}>
+            <Switch
+              value={isUrgent}
+              onValueChange={setIsUrgent}
+              trackColor={{ false: isDark ? '#2A3530' : '#E0E8EF', true: 'rgba(239,68,68,0.4)' }}
+              thumbColor={isUrgent ? '#EF4444' : (isDark ? '#4A5568' : '#CBD5E0')}
+            />
+            <View style={styles.toggleText}>
+              <View style={styles.urgentRow}>
+                <Flame size={13} color="#EF4444" />
+                <Text style={[styles.toggleLabel, { color: '#EF4444' }]}>مستعجل</Text>
+              </View>
+              <Text style={[styles.toggleSub, { color: C.textSecondary }]}>يُعلَّم بشكل مميز لمدة 24 ساعة</Text>
+            </View>
           </View>
         </View>
 
-        {/* العنوان */}
-        <Text style={[styles.fieldLabel, { color: C.text }]}>العنوان</Text>
-        <TextInput style={[styles.textInput, { backgroundColor: C.input, borderColor: C.inputBorder, color: C.text }]} placeholder="عنوان الإعلان" placeholderTextColor={C.textMuted} value={title} onChangeText={setTitle} textAlign="right" />
-
-        {/* الوصف */}
-        <Text style={[styles.fieldLabel, { color: C.text }]}>الوصف</Text>
-        <TextInput style={[styles.textInput, styles.textArea, { backgroundColor: C.input, borderColor: C.inputBorder, color: C.text }]} placeholder="وصف الإعلان" placeholderTextColor={C.textMuted} value={description} onChangeText={setDescription} multiline numberOfLines={4} textAlign="right" />
-
-        {/* التصنيف */}
-        <Text style={[styles.fieldLabel, { color: C.text }]}>التصنيف</Text>
-        <View style={styles.chipGrid}>
-          {CATEGORIES.map(({ label, value }) => (
-            <TouchableOpacity
-              key={value}
-              style={[styles.chip, {
-                backgroundColor: category === value ? (isDark ? `${C.primary}18` : C.primary) : (isDark ? C.card : '#fff'),
-                borderColor: category === value ? C.primary : (isDark ? C.cardBorder : '#E0E8EF'),
-              }]}
-              onPress={() => setCategory(value)} activeOpacity={0.7}
-            >
-              {value === 'animals' && <PawPrint size={12} color={category === value ? (isDark ? C.primary : '#fff') : C.textSecondary} />}
-              <Text style={[styles.chipText, { color: category === value ? (isDark ? C.primary : '#fff') : C.textSecondary }]}>{label}</Text>
-            </TouchableOpacity>
+        {/* ── الصور ── */}
+        <Text style={[styles.sectionLabel, { color: C.text }]}>
+          الصور{' '}
+          <Text style={{ color: C.textSecondary, fontWeight: '500', fontSize: FontSizes.sm }}>
+            ({images.length}/{MAX_IMAGES})
+          </Text>
+        </Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.imagesRow}
+        >
+          {images.map((uri, idx) => (
+            <View key={uri} style={styles.imageThumbWrap}>
+              <Image source={{ uri }} style={styles.imageThumb} />
+              {idx === 0 && (
+                <View style={styles.mainBadge}>
+                  <Text style={styles.mainBadgeText}>رئيسية</Text>
+                </View>
+              )}
+              <TouchableOpacity style={styles.imgRemoveBtn} onPress={() => removeImage(idx)}>
+                <X size={11} color="#fff" strokeWidth={3} />
+              </TouchableOpacity>
+            </View>
           ))}
+          {images.length < MAX_IMAGES && (
+            <TouchableOpacity
+              style={[styles.addImgBtn, { backgroundColor: isDark ? '#0D1410' : '#F4F9F6', borderColor: isDark ? 'rgba(0,200,83,0.2)' : '#C8E6C9' }]}
+              onPress={pickImages}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.addImgIcon, { backgroundColor: isDark ? 'rgba(0,200,83,0.12)' : 'rgba(0,168,68,0.08)' }]}>
+                <Camera size={22} color={C.primary} />
+              </View>
+              <Text style={[styles.addImgLabel, { color: C.primary }]}>أضف صورة</Text>
+              <Text style={[styles.addImgSub, { color: C.textSecondary }]}>
+                {MAX_IMAGES - images.length} متبقية
+              </Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+
+        {/* ── العنوان ── */}
+        <Text style={[styles.sectionLabel, { color: C.text }]}>عنوان الإعلان</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder, color: C.text }]}
+          placeholder="اكتب عنواناً واضحاً..."
+          placeholderTextColor={C.textMuted}
+          value={title}
+          onChangeText={(t) => { setTitle(t); setError(null); }}
+          textAlign="right"
+          maxLength={80}
+        />
+
+        {/* ── الوصف ── */}
+        <Text style={[styles.sectionLabel, { color: C.text }]}>الوصف</Text>
+        <TextInput
+          style={[styles.input, styles.textArea, { backgroundColor: inputBg, borderColor: inputBorder, color: C.text }]}
+          placeholder="صف الغرض بالتفصيل: الحالة، الحجم، اللون، أي عيوب..."
+          placeholderTextColor={C.textMuted}
+          value={description}
+          onChangeText={setDescription}
+          multiline
+          numberOfLines={4}
+          textAlign="right"
+          textAlignVertical="top"
+        />
+
+        {/* ── التصنيف ── */}
+        <Text style={[styles.sectionLabel, { color: C.text }]}>التصنيف</Text>
+        <View style={styles.chipGrid}>
+          {CATEGORIES.map(({ label, value }) => {
+            const active = category === value;
+            return (
+              <TouchableOpacity
+                key={value}
+                style={[styles.chip, {
+                  backgroundColor: active ? (isDark ? `${C.primary}18` : C.primary) : cardBg,
+                  borderColor: active ? C.primary : inputBorder,
+                }]}
+                onPress={() => { setCategory(value); setError(null); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.chipText, { color: active ? (isDark ? C.primary : '#fff') : C.textSecondary }]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* المدينة */}
-        <Text style={[styles.fieldLabel, { color: C.text }]}>المدينة</Text>
+        {/* ── المدينة ── */}
+        <Text style={[styles.sectionLabel, { color: C.text }]}>المدينة</Text>
         <View style={styles.chipGrid}>
-          {CITIES.map((c) => (
-            <TouchableOpacity
-              key={c}
-              style={[styles.chip, styles.cityChip, {
-                backgroundColor: city === c ? (isDark ? `${C.primary}18` : C.primary) : (isDark ? C.card : '#fff'),
-                borderColor: city === c ? C.primary : (isDark ? C.cardBorder : '#E0E8EF'),
-              }]}
-              onPress={() => setCity(c)} activeOpacity={0.7}
-            >
-              <MapPin size={11} color={city === c ? (isDark ? C.primary : '#fff') : C.textSecondary} />
-              <Text style={[styles.chipText, { color: city === c ? (isDark ? C.primary : '#fff') : C.textSecondary }]}>{c}</Text>
-            </TouchableOpacity>
-          ))}
+          {CITIES.map((c) => {
+            const active = city === c;
+            return (
+              <TouchableOpacity
+                key={c}
+                style={[styles.chip, styles.cityChip, {
+                  backgroundColor: active ? (isDark ? `${C.primary}18` : C.primary) : cardBg,
+                  borderColor: active ? C.primary : inputBorder,
+                }]}
+                onPress={() => { setCity(c); setError(null); }}
+                activeOpacity={0.7}
+              >
+                <MapPin size={10} color={active ? (isDark ? C.primary : '#fff') : C.textSecondary} />
+                <Text style={[styles.chipText, { color: active ? (isDark ? C.primary : '#fff') : C.textSecondary }]}>
+                  {c}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* رقم الهاتف */}
-        <Text style={[styles.fieldLabel, { color: C.text }]}>رقم الهاتف للتواصل</Text>
-        <TextInput style={[styles.textInput, { backgroundColor: C.input, borderColor: C.inputBorder, color: C.text }]} placeholder="05xxxxxxxx" placeholderTextColor={C.textMuted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" textAlign="right" />
+        {/* ── رقم الهاتف ── */}
+        <Text style={[styles.sectionLabel, { color: C.text }]}>رقم الهاتف للتواصل</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder, color: C.text }]}
+          placeholder="05xxxxxxxx"
+          placeholderTextColor={C.textMuted}
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          textAlign="right"
+        />
 
-        {/* طريقة التسليم */}
-        <Text style={[styles.fieldLabel, { color: C.text }]}>طريقة التسليم</Text>
+        {/* ── طريقة التسليم ── */}
+        <Text style={[styles.sectionLabel, { color: C.text }]}>طريقة التسليم</Text>
         <View style={styles.deliveryList}>
           {DELIVERY_OPTIONS.map(({ value, label, icon: Icon }) => {
             const active = deliveryMethod === value;
             return (
               <TouchableOpacity
                 key={value}
-                style={[styles.deliveryOption, {
-                  backgroundColor: active ? (isDark ? `${C.primary}10` : `${C.primary}08`) : (isDark ? C.card : '#fff'),
-                  borderColor: active ? C.primary : (isDark ? C.cardBorder : '#E0E8EF'),
+                style={[styles.deliveryRow, {
+                  backgroundColor: active ? (isDark ? `${C.primary}10` : `${C.primary}08`) : cardBg,
+                  borderColor: active ? C.primary : inputBorder,
                 }]}
-                onPress={() => setDeliveryMethod(value)} activeOpacity={0.7}
+                onPress={() => setDeliveryMethod(value)}
+                activeOpacity={0.75}
               >
-                <View style={styles.deliveryOptionLeft}>
-                  {active && <Check size={15} color={C.primary} />}
+                <View style={[styles.radioOuter, { borderColor: active ? C.primary : (isDark ? '#3A4A44' : '#C8D6D0') }]}>
+                  {active && <View style={[styles.radioInner, { backgroundColor: C.primary }]} />}
                 </View>
-                <View style={styles.deliveryOptionRight}>
+                <View style={[styles.deliveryIconWrap, { backgroundColor: active ? (isDark ? `${C.primary}18` : `${C.primary}12`) : (isDark ? '#1A2020' : '#F4F7FA') }]}>
                   <Icon size={17} color={active ? C.primary : C.textSecondary} />
-                  <Text style={[styles.deliveryOptionText, { color: active ? C.primary : C.textSecondary, fontWeight: active ? '700' : '500' }]}>{label}</Text>
                 </View>
+                <Text style={[styles.deliveryLabel, { color: active ? C.primary : C.text, fontWeight: active ? '700' : '500' }]}>
+                  {label}
+                </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* الصورة */}
-        <Text style={[styles.fieldLabel, { color: C.text }]}>صورة الإعلان</Text>
-        <View style={styles.imageSection}>
-          {imageUri ? (
-            <View style={styles.imagePreviewWrapper}>
-              <Image source={{ uri: imageUri }} style={styles.imagePreview} />
-              <TouchableOpacity style={styles.imageRemoveBtn} onPress={() => setImageUri(null)}>
-                <X size={15} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity style={[styles.addImgBtn, { backgroundColor: isDark ? C.card : '#F4F7FA', borderColor: isDark ? C.cardBorder : '#E0E8EF' }]} onPress={pickImage} activeOpacity={0.7}>
-              <Camera size={30} color={C.textSecondary} />
-              <Text style={[styles.addImgText, { color: C.textSecondary }]}>اضغط لاختيار صورة</Text>
-              <Text style={[styles.addImgSubText, { color: C.textMuted }]}>من مكتبة الصور</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* زر النشر */}
+        {/* ── زر النشر ── */}
         <TouchableOpacity
-          style={[styles.submitBtn, {
-            backgroundColor: C.primary,
-            shadowColor: C.primary,
-            opacity: (loading || uploading) ? 0.6 : 1,
-          }]}
+          style={[styles.submitBtn, { backgroundColor: C.primary, shadowColor: C.primary, opacity: isLoading ? 0.7 : 1 }]}
           onPress={handleSubmit}
-          disabled={loading || uploading}
-          activeOpacity={0.8}
+          disabled={isLoading}
+          activeOpacity={0.85}
         >
-          {loading || uploading ? (
+          {isLoading ? (
             <View style={styles.loadingRow}>
-              <ActivityIndicator color="#000" />
-              <Text style={[styles.submitBtnText, { color: '#000' }]}>
-                {uploading ? 'جاري رفع الصورة...' : 'جاري النشر...'}
+              <ActivityIndicator color="#000" size="small" />
+              <Text style={styles.submitBtnText}>
+                {step === 'uploading' ? 'جاري رفع الصور...' : 'جاري النشر...'}
               </Text>
             </View>
           ) : (
-            <Text style={[styles.submitBtnText, { color: '#000' }]}>نشر الإعلان</Text>
+            <View style={styles.loadingRow}>
+              <Plus size={20} color="#000" strokeWidth={3} />
+              <Text style={styles.submitBtnText}>نشر الإعلان</Text>
+            </View>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -344,76 +514,147 @@ export default function AddPostScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
   navBar: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: 14,
     borderBottomWidth: 1,
   },
   navTitle: { fontSize: FontSizes.lg, fontWeight: '700' },
-  navIconBtn: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+  navIconBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    justifyContent: 'center', alignItems: 'center',
+  },
+
   scroll: { flex: 1 },
-  scrollContent: { padding: Spacing.lg, paddingBottom: Spacing.xxl, gap: Spacing.md },
-  errorBox: { borderWidth: 1, borderRadius: BorderRadius.md, padding: Spacing.md },
-  errorText: { fontSize: FontSizes.sm, textAlign: 'right' },
-  fieldLabel: { fontSize: FontSizes.md, fontWeight: '700', textAlign: 'right', marginBottom: Spacing.xs },
+  scrollContent: { padding: Spacing.lg, gap: Spacing.md },
+
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  errorText: { color: '#EF4444', fontSize: FontSizes.sm, flex: 1, textAlign: 'right' },
+
+  sectionLabel: {
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+    textAlign: 'right',
+    marginBottom: -4,
+  },
+
   typeRow: { flexDirection: 'row', gap: Spacing.md },
   typeBtn: {
     flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    gap: Spacing.sm, paddingVertical: Spacing.md, borderRadius: BorderRadius.xl,
-    borderWidth: 1.5,
+    gap: Spacing.sm, paddingVertical: 14, borderRadius: 16, borderWidth: 1.5,
   },
   typeBtnText: { fontSize: FontSizes.lg, fontWeight: '700' },
+
+  toggleCard: { borderRadius: 18, borderWidth: 1, overflow: 'hidden' },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
-    gap: Spacing.md, borderRadius: BorderRadius.xl, borderWidth: 1, padding: Spacing.md,
+    gap: Spacing.md, padding: 14,
   },
-  toggleTextBlock: { flex: 1, alignItems: 'flex-end' },
+  toggleDivider: { height: 1, marginHorizontal: 14 },
+  toggleText: { flex: 1, alignItems: 'flex-end', gap: 2 },
   toggleLabel: { fontSize: FontSizes.md, fontWeight: '700', textAlign: 'right' },
-  toggleSub: { fontSize: FontSizes.xs, textAlign: 'right', marginTop: 2 },
-  urgentLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  textInput: {
-    borderWidth: 1.5, borderRadius: BorderRadius.xl,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.md,
-    fontSize: FontSizes.md, textAlign: 'right',
+  toggleSub: { fontSize: FontSizes.xs, textAlign: 'right' },
+  urgentRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+
+  imagesRow: { gap: 10, paddingVertical: 4 },
+  imageThumbWrap: { width: 110, height: 110, borderRadius: 14, overflow: 'hidden', position: 'relative' },
+  imageThumb: { width: '100%', height: '100%', resizeMode: 'cover' },
+  mainBadge: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(0,0,0,0.55)', paddingVertical: 3, alignItems: 'center',
   },
-  textArea: { minHeight: 100, textAlignVertical: 'top' },
+  mainBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  imgRemoveBtn: {
+    position: 'absolute', top: 6, right: 6,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: 'rgba(239,68,68,0.9)', justifyContent: 'center', alignItems: 'center',
+  },
+  addImgBtn: {
+    width: 110, height: 110, borderRadius: 14,
+    borderWidth: 1.5, borderStyle: 'dashed',
+    justifyContent: 'center', alignItems: 'center', gap: 6,
+  },
+  addImgIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  addImgLabel: { fontSize: FontSizes.sm, fontWeight: '700' },
+  addImgSub: { fontSize: 10 },
+
+  input: {
+    borderWidth: 1.5, borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: FontSizes.md,
+  },
+  textArea: { minHeight: 110, textAlignVertical: 'top' },
+
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full, borderWidth: 1,
+    paddingHorizontal: 14, paddingVertical: 9,
+    borderRadius: 99, borderWidth: 1,
   },
-  cityChip: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2 },
-  chipText: { fontSize: FontSizes.sm },
-  deliveryList: { gap: Spacing.sm },
-  deliveryOption: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1.5, borderRadius: BorderRadius.xl,
-    paddingVertical: Spacing.md, paddingHorizontal: Spacing.md,
+  cityChip: { paddingHorizontal: 10, paddingVertical: 7 },
+  chipText: { fontSize: FontSizes.sm, fontWeight: '600' },
+
+  deliveryList: { gap: 10 },
+  deliveryRow: {
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 12,
+    borderWidth: 1.5, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 14,
   },
-  deliveryOptionLeft: { width: 20, alignItems: 'center' },
-  deliveryOptionRight: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.sm },
-  deliveryOptionText: { fontSize: FontSizes.md, textAlign: 'right' },
-  imageSection: { alignItems: 'center' },
-  imagePreviewWrapper: { position: 'relative', width: '100%' },
-  imagePreview: { width: '100%', height: 200, borderRadius: BorderRadius.xl, resizeMode: 'cover' },
-  imageRemoveBtn: {
-    position: 'absolute', top: 10, right: 10,
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center',
+  radioOuter: {
+    width: 20, height: 20, borderRadius: 10, borderWidth: 2,
+    justifyContent: 'center', alignItems: 'center',
   },
-  addImgBtn: {
-    width: '100%', height: 160, borderRadius: BorderRadius.xl,
-    borderWidth: 1.5, borderStyle: 'dashed',
-    justifyContent: 'center', alignItems: 'center', gap: Spacing.sm,
+  radioInner: { width: 10, height: 10, borderRadius: 5 },
+  deliveryIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center',
   },
-  addImgText: { fontSize: FontSizes.md, fontWeight: '600' },
-  addImgSubText: { fontSize: FontSizes.sm },
+  deliveryLabel: { flex: 1, fontSize: FontSizes.md, textAlign: 'right' },
+
   submitBtn: {
-    borderRadius: BorderRadius.xl, paddingVertical: Spacing.md + 4,
-    alignItems: 'center', marginTop: Spacing.md,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 4,
+    borderRadius: 16, paddingVertical: 17,
+    alignItems: 'center', marginTop: Spacing.sm,
+    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 6,
   },
-  submitBtnText: { fontSize: FontSizes.lg, fontWeight: '700' },
-  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  submitBtnText: { fontSize: FontSizes.lg, fontWeight: '800', color: '#000' },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+
+  // Success screen
+  successContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
+  successInner: { width: '100%', alignItems: 'center', gap: 16 },
+  successIconWrap: {
+    width: 120, height: 120, borderRadius: 60, borderWidth: 2,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 8,
+  },
+  successTitle: { fontSize: 28, fontWeight: '800', textAlign: 'center' },
+  successSub: { fontSize: FontSizes.md, textAlign: 'center', lineHeight: 24, maxWidth: 280 },
+  successDetails: { width: '100%', marginTop: 8 },
+  successDetailRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 12, borderBottomWidth: 1,
+  },
+  successDetailKey: { fontSize: FontSizes.sm, fontWeight: '600' },
+  successDetailVal: { fontSize: FontSizes.sm, fontWeight: '700', maxWidth: '65%', textAlign: 'right' },
+  doneBtn: {
+    width: '100%', borderRadius: 16, paddingVertical: 16,
+    alignItems: 'center', marginTop: 8,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 5,
+  },
+  doneBtnText: { fontSize: FontSizes.lg, fontWeight: '800', color: '#000' },
+  viewBtn: {
+    width: '100%', borderRadius: 16, paddingVertical: 14,
+    alignItems: 'center', borderWidth: 1,
+  },
+  viewBtnText: { fontSize: FontSizes.md, fontWeight: '600' },
 });
