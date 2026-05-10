@@ -1,18 +1,29 @@
 import { useEffect } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuth } from '@/lib/auth';
 
 export default function AdminLayout() {
   const { profile, loading, isAdmin } = useAuth();
   const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
     if (loading) return;
+
+    // Not admin — kick out immediately
     if (!profile || !isAdmin) {
       router.replace('/(tabs)');
+      return;
     }
-  }, [profile, loading, isAdmin]);
+
+    // Admin but must change password — force to change-password screen
+    // unless they are already on the change-password screen
+    const onChangePassword = segments.includes('change-password');
+    if (profile.must_change_password && !onChangePassword) {
+      router.replace('/admin/change-password');
+    }
+  }, [profile, loading, isAdmin, segments]);
 
   if (loading) {
     return (
@@ -33,6 +44,7 @@ export default function AdminLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="change-password" options={{ animation: 'fade', gestureEnabled: false }} />
       <Stack.Screen name="reports" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="users" options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="listings" options={{ animation: 'slide_from_right' }} />

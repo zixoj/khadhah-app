@@ -29,6 +29,8 @@ export interface Profile {
   last_display_name_change_at: string | null;
   last_username_change_at: string | null;
   account_status: AccountStatus;
+  must_change_password: boolean;
+  is_hidden_from_public: boolean;
 }
 
 export interface Report {
