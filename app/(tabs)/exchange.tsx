@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -69,6 +70,8 @@ export default function ExchangeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  const fabBottom = insets.bottom + 64 + 24;
   const [listings, setListings] = useState<Listing[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -316,11 +319,11 @@ export default function ExchangeScreen() {
 
       {profile && (
         <TouchableOpacity
-          style={[styles.fab, { backgroundColor: colors.exchange, shadowColor: colors.exchange }]}
+          style={[styles.fab, { backgroundColor: colors.primary, shadowColor: colors.primary, bottom: fabBottom }]}
           onPress={() => router.push('/add-post?type=exchange')}
           activeOpacity={0.8}
         >
-          <Plus size={28} color="#fff" strokeWidth={2.5} />
+          <Plus size={28} color="#fff" strokeWidth={3} />
         </TouchableOpacity>
       )}
 
@@ -474,9 +477,18 @@ const styles = StyleSheet.create({
   offerBtnText: { fontSize: FontSizes.sm, fontWeight: '700' },
 
   fab: {
-    position: 'absolute', bottom: Spacing.xl, left: Spacing.lg,
-    width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 6,
+    position: 'absolute',
+    left: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 8,
+    zIndex: 100,
   },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },

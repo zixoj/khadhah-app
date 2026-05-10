@@ -11,6 +11,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -43,6 +44,8 @@ export default function MyListingsScreen() {
   const { profile } = useAuth();
   const { colors, isDark } = useTheme();
   const C = colors;
+  const insets = useSafeAreaInsets();
+  const fabBottom = insets.bottom + 24;
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -231,11 +234,11 @@ export default function MyListingsScreen() {
       )}
 
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: C.primary, shadowColor: C.primary }]}
+        style={[styles.fab, { backgroundColor: C.primary, shadowColor: C.primary, bottom: fabBottom }]}
         onPress={() => router.push('/add-post')}
         activeOpacity={0.8}
       >
-        <Plus size={26} color="#000" strokeWidth={2.5} />
+        <Plus size={26} color="#fff" strokeWidth={3} />
       </TouchableOpacity>
 
       {/* Arabic confirmation modal */}
@@ -336,10 +339,18 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: { fontSize: FontSizes.xs, fontWeight: '700' },
   fab: {
-    position: 'absolute', bottom: Spacing.xl, left: Spacing.lg,
-    width: 54, height: 54, borderRadius: 27,
-    justifyContent: 'center', alignItems: 'center',
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.45, shadowRadius: 16, elevation: 6,
+    position: 'absolute',
+    left: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 8,
+    zIndex: 100,
   },
 
   // Modal
