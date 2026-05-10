@@ -21,6 +21,7 @@ function AppStack() {
         <Stack.Screen name="activity-log" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="notifications-settings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="admin" options={{ animation: 'fade' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />

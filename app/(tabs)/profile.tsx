@@ -21,7 +21,7 @@ interface ExtendedProfile {
 }
 
 export default function ProfileScreen() {
-  const { profile: baseProfile, signOut } = useAuth();
+  const { profile: baseProfile, signOut, isAdmin } = useAuth();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const C = colors;
@@ -161,12 +161,23 @@ export default function ProfileScreen() {
         <MenuItem icon={<Activity size={18} color={C.primary} />} label="سجل النشاط" onPress={() => router.push('/activity-log')} colors={C} isDark={isDark} last />
       </View>
 
+      {isAdmin && (
+        <TouchableOpacity
+          style={[styles.adminBtn, { borderColor: 'rgba(0,200,83,0.35)', backgroundColor: 'rgba(0,200,83,0.08)' }]}
+          onPress={() => router.push('/admin')}
+          activeOpacity={0.82}
+        >
+          <ShieldCheck size={18} color="#00C853" />
+          <Text style={styles.adminBtnText}>لوحة التحكم</Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity style={[styles.signOutBtn, { backgroundColor: C.errorBg, borderColor: `${C.error}44` }]} onPress={handleSignOut} activeOpacity={0.7}>
         <LogOut size={18} color={C.error} />
         <Text style={[styles.signOutText, { color: C.error }]}>تسجيل الخروج</Text>
       </TouchableOpacity>
 
-      <Text style={[styles.version, { color: C.textMuted }]}>خذه v1.0.0</Text>
+      <Text style={[styles.version, { color: C.textMuted }]}>خذها v1.0.0</Text>
     </ScrollView>
   );
 }
@@ -262,6 +273,12 @@ const styles = StyleSheet.create({
   badgePill: { borderRadius: BorderRadius.full, paddingHorizontal: 8, paddingVertical: 2 },
   badgeText: { fontSize: FontSizes.xs, fontWeight: '700' },
 
+  adminBtn: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: Spacing.sm, borderWidth: 1, borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.md, marginHorizontal: Spacing.lg, marginTop: Spacing.md,
+  },
+  adminBtnText: { fontSize: FontSizes.lg, fontWeight: '700', color: '#00C853' },
   signOutBtn: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
     gap: Spacing.sm, borderWidth: 1, borderRadius: BorderRadius.xl,

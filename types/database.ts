@@ -1,4 +1,6 @@
-export type UserRole = 'advertiser' | 'delivery_agent';
+export type UserRole = 'advertiser' | 'delivery_agent' | 'admin';
+export type AccountStatus = 'active' | 'suspended' | 'banned';
+export type ReportStatus = 'new' | 'under_review' | 'resolved' | 'rejected';
 export type PostType = 'exchange' | 'free';
 export type DeliveryMethod = 'pickup' | 'delivery_agent' | 'direct_contact';
 export type ListingStatus = 'available' | 'reserved_temp' | 'reserved' | 'taken';
@@ -26,6 +28,32 @@ export interface Profile {
   phone_verified_at: string | null;
   last_display_name_change_at: string | null;
   last_username_change_at: string | null;
+  account_status: AccountStatus;
+}
+
+export interface Report {
+  id: string;
+  listing_id: string | null;
+  reporter_id: string;
+  reported_user_id: string | null;
+  chat_room_id: string | null;
+  reason: string;
+  description: string;
+  status: ReportStatus;
+  admin_notes: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface AdminLog {
+  id: string;
+  admin_id: string;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface Listing {
@@ -52,6 +80,8 @@ export interface Listing {
   reserved_until: string | null;
   is_featured: boolean;
   premium_badge: boolean;
+  is_hidden: boolean;
+  admin_note: string;
 }
 
 export interface DeliveryRequest {
