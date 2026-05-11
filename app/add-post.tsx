@@ -176,88 +176,89 @@ export default function AddPostScreen() {
   // Returns { publicUrl, storagePath }
   const uploadImage = async (
     img: PickedImage,
-    retries = 2,
   ): Promise<{ publicUrl: string; storagePath: string }> => {
-    if (!profile?.id) throw new Error('المستخدم غير مسجّل الدخول');
-    if (!img.uri) throw new Error('مسار الصورة غير صالح');
+    // ── 1. Verify live auth session ─────────────────────────────────────────
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log('[Upload] auth.getUser ->', user?.id ?? 'NO USER', userError?.message ?? '');
+    if (userError || !user) {
+      throw new Error('المستخدم غير مسجّل الدخول — ' + (userError?.message ?? 'no session'));
+    }
 
-    // HEIC/HEIF — Expo transcodes to JPEG at quality < 1; treat as jpeg
+    // ── 2. Build file path ──────────────────────────────────────────────────
     const effectiveMime = img.mimeType.startsWith('image/hei') ? 'image/jpeg' : img.mimeType;
     const ext = mimeToExt(effectiveMime);
-    const uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    // Storage INSERT policy: foldername(name)[1] must equal auth.uid()
-    const storagePath = `${profile.id}/${uniqueId}.${ext}`;
+    // Path format: ads/{userId}/{timestamp}-{random}.ext
+    // foldername(name)[1] in the INSERT policy checks the FIRST segment = user.id
+    const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    console.log('[Upload] bucket=ads-images path=' + storagePath + ' mime=' + effectiveMime + ' uri=' + img.uri.slice(0, 60));
+    console.log('[Upload] ── DIAGNOSTIC ──');
+    console.log('[Upload] uri       :', img.uri);
+    console.log('[Upload] mimeType  :', img.mimeType, '→ effective:', effectiveMime);
+    console.log('[Upload] fileSize  :', img.fileSize ?? 'unknown');
+    console.log('[Upload] userId    :', user.id);
+    console.log('[Upload] bucket    : ads-images');
+    console.log('[Upload] filePath  :', filePath);
 
-    let lastError: Error | null = null;
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        // ── Read image as Blob ─────────────────────────────────────────────
-        // fetch() works for:
-        //   • web: blob: URLs returned by the browser image picker
-        //   • native: file:// temp copies that expo-image-picker creates
-        // expo-image-picker always copies ph:// assets to file:// before returning.
-        const fetchRes = await fetch(img.uri);
-        if (!fetchRes.ok) {
-          throw new Error(`فشل قراءة الملف (HTTP ${fetchRes.status})`);
-        }
-        const blob = await fetchRes.blob();
-        console.log(`[Upload] attempt ${attempt + 1} — size=${blob.size} blobType="${blob.type}"`);
-
-        if (blob.size === 0) throw new Error('الصورة فارغة أو تالفة');
-        if (blob.size > MAX_FILE_BYTES) throw new Error('حجم الصورة كبير، حاول بصورة أصغر');
-
-        // Supabase storage-js: when body is a Blob, it wraps in FormData.
-        // On web this works fine (browser serialises FormData correctly).
-        // On native we convert to Uint8Array to bypass FormData entirely and
-        // let the SDK send raw bytes with the explicit content-type header.
-        let uploadBody: Blob | Uint8Array;
-        if (Platform.OS === 'web') {
-          // Keep as Blob — browser handles FormData serialisation correctly
-          uploadBody = blob.type ? blob : new Blob([blob], { type: effectiveMime });
-        } else {
-          // Native: ArrayBuffer path → SDK sends raw bytes + content-type header
-          const ab = await blob.arrayBuffer();
-          uploadBody = new Uint8Array(ab);
-        }
-
-        const { data, error: uploadError } = await supabase.storage
-          .from('ads-images')
-          .upload(storagePath, uploadBody, {
-            contentType: effectiveMime,
-            upsert: false,
-            cacheControl: '3600',
-          });
-
-        console.log('[Upload] response data=' + JSON.stringify(data) + ' error=' + JSON.stringify(uploadError));
-
-        if (uploadError) {
-          console.error('[Upload] SUPABASE ERROR:', uploadError.message, '| status:', (uploadError as any).status, '| full:', uploadError);
-          throw new Error(uploadError.message || 'فشل رفع الصورة');
-        }
-
-        const uploadedPath = data?.path ?? null;
-        if (!uploadedPath) {
-          console.error('[Upload] missing path in response:', data);
-          throw new Error('فشل رفع الصورة، لم يُرجع المسار');
-        }
-
-        const { data: urlData } = supabase.storage.from('ads-images').getPublicUrl(uploadedPath);
-        const publicUrl = urlData?.publicUrl ?? null;
-        if (!publicUrl) throw new Error('فشل الحصول على رابط الصورة');
-
-        console.log('[Upload] SUCCESS publicUrl=' + publicUrl);
-        return { publicUrl, storagePath: uploadedPath };
-      } catch (err: any) {
-        lastError = err instanceof Error ? err : new Error(String(err?.message ?? err));
-        console.warn(`[Upload] attempt ${attempt + 1}/${retries + 1} FAILED: ${lastError.message}`);
-        if (attempt < retries) {
-          await new Promise((res) => setTimeout(res, 1200 * (attempt + 1)));
-        }
-      }
+    // ── 3. Read image bytes ─────────────────────────────────────────────────
+    let uploadBody: Blob | Uint8Array;
+    if (Platform.OS === 'web') {
+      // Web: image picker gives a blob: URL — fetch + blob is the correct path.
+      // Supabase wraps Blob in FormData which browsers handle correctly.
+      const res = await fetch(img.uri);
+      if (!res.ok) throw new Error(`fetch failed: HTTP ${res.status}`);
+      const blob = await res.blob();
+      console.log('[Upload] blob size:', blob.size, 'type:', blob.type);
+      if (blob.size === 0) throw new Error('الصورة فارغة');
+      if (blob.size > MAX_FILE_BYTES) throw new Error('حجم الصورة أكبر من 5 ميغابايت');
+      uploadBody = blob.type ? blob : new Blob([blob], { type: effectiveMime });
+    } else {
+      // Native: expo-image-picker returns file:// URIs.
+      // fetch() on file:// works in RN. We convert to Uint8Array so Supabase
+      // sends raw bytes with content-type header (bypasses broken FormData path).
+      const res = await fetch(img.uri);
+      if (!res.ok) throw new Error(`fetch failed: HTTP ${res.status}`);
+      const blob = await res.blob();
+      console.log('[Upload] blob size:', blob.size, 'type:', blob.type);
+      if (blob.size === 0) throw new Error('الصورة فارغة');
+      if (blob.size > MAX_FILE_BYTES) throw new Error('حجم الصورة أكبر من 5 ميغابايت');
+      const ab = await blob.arrayBuffer();
+      uploadBody = new Uint8Array(ab);
     }
-    throw lastError ?? new Error('فشل رفع الصورة، حاول مرة أخرى');
+
+    // ── 4. Upload to Supabase Storage ───────────────────────────────────────
+    console.log('[Upload] calling supabase.storage.upload ...');
+    const { data, error: uploadError } = await supabase.storage
+      .from('ads-images')
+      .upload(filePath, uploadBody, {
+        contentType: effectiveMime,
+        upsert: false,
+        cacheControl: '3600',
+      });
+
+    if (uploadError) {
+      console.error('[Upload] ── UPLOAD ERROR ──');
+      console.error('[Upload] message :', uploadError.message);
+      console.error('[Upload] status  :', (uploadError as any).status);
+      console.error('[Upload] error   :', (uploadError as any).error);
+      console.error('[Upload] details :', (uploadError as any).details);
+      console.error('[Upload] full    :', JSON.stringify(uploadError, null, 2));
+      // Re-throw with FULL raw message so it surfaces on screen unfiltered
+      throw uploadError;
+    }
+
+    const uploadedPath = data?.path ?? null;
+    if (!uploadedPath) {
+      console.error('[Upload] missing path in response:', JSON.stringify(data));
+      throw new Error('رفع الصورة نجح لكن لم يُرجع مساراً');
+    }
+
+    const { data: urlData } = supabase.storage.from('ads-images').getPublicUrl(uploadedPath);
+    const publicUrl = urlData?.publicUrl ?? null;
+    if (!publicUrl) throw new Error('فشل الحصول على الرابط العام للصورة');
+
+    console.log('[Upload] ── UPLOAD SUCCESS ──');
+    console.log('[Upload] publicUrl:', publicUrl);
+    return { publicUrl, storagePath: uploadedPath };
   };
 
   const handleSubmit = async () => {
@@ -281,12 +282,15 @@ export default function AddPostScreen() {
           uploaded.push(result);
         } catch (err: any) {
           setStep('idle');
-          const raw: string = err?.message ?? '';
-          const arabic = raw.includes('حجم') ? raw
-            : raw.includes('فشل') || raw.includes('خطأ') ? raw
-            : 'فشل رفع الصورة، حاول مرة أخرى';
-          setError(arabic);
-          console.error('[handleSubmit] upload failed at index', i, ':', raw);
+          // Show the REAL error unfiltered so the cause is visible
+          const msg: string =
+            err?.message ||
+            err?.error ||
+            err?.details ||
+            JSON.stringify(err) ||
+            'فشل رفع الصورة';
+          console.error('[handleSubmit] upload[' + i + '] FAILED:', msg, err);
+          setError('خطأ رفع الصورة: ' + msg);
           return;
         }
       }
