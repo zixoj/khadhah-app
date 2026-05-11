@@ -90,37 +90,104 @@ export default function AddPostScreen() {
   const isLoading = step === 'uploading' || step === 'saving';
 
   const pickImages = async () => {
-    if (images.length >= MAX_IMAGES) return;
+    if (images.length >= MAX_IMAGES || isLoading) return;
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') { setError('يرجى السماح بالوصول إلى الصور'); return; }
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      selectionLimit: MAX_IMAGES - images.length,
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets.length > 0) {
-      const newUris = result.assets.map((a) => a.uri);
-      setImages((prev) => [...prev, ...newUris].slice(0, MAX_IMAGES));
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        selectionLimit: MAX_IMAGES - images.length,
+        quality: 0.7,
+        exif: false,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const SUPPORTED = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+        const valid = result.assets.filter((a) => {
+          if (!a.uri) return false;
+          const mime = a.mimeType?.toLowerCase() ?? '';
+          if (mime && !SUPPORTED.some((s) => mime.includes(s.split('/')[1]))) return false;
+          return true;
+        });
+        if (valid.length < result.assets.length) {
+          setError('بعض الملفات غير مدعومة وتم تجاهلها');
+        }
+        if (valid.length > 0) {
+          const newUris = valid.map((a) => a.uri);
+          setImages((prev) => [...prev, ...newUris].slice(0, MAX_IMAGES));
+        }
+      }
+    } catch (err) {
+      console.error('[ImagePicker] error:', err);
+      setError('فشل فتح معرض الصور، حاول مرة أخرى');
     }
   };
 
   const removeImage = (idx: number) => {
+    if (isLoading) return;
     setImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const uploadImage = async (uri: string): Promise<string> => {
-    const filename = `${profile!.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    const { data, error: uploadError } = await supabase.storage
-      .from('listing-images')
-      .upload(filename, blob, { contentType: 'image/jpeg', upsert: false });
-    if (uploadError) throw uploadError;
-    const { data: urlData } = supabase.storage.from('listing-images').getPublicUrl(data.path);
-    return urlData.publicUrl;
+  const uploadImage = async (uri: string, retries = 2): Promise<string> => {
+    if (!profile?.id) throw new Error('المستخدم غير مسجّل الدخول');
+    if (!uri || uri.trim() === '') throw new Error('مسار الصورة غير صالح');
+
+    const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const safeExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ? ext : 'jpg';
+    const filename = `${profile.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${safeExt}`;
+    const contentType = safeExt === 'png' ? 'image/png' : safeExt === 'webp' ? 'image/webp' : 'image/jpeg';
+
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        console.log(`[Upload] attempt ${attempt + 1} — file: ${filename}`);
+
+        const fetchResponse = await fetch(uri);
+        if (!fetchResponse.ok) {
+          throw new Error(`فشل قراءة الصورة (${fetchResponse.status})`);
+        }
+        const blob = await fetchResponse.blob();
+        if (!blob || blob.size === 0) {
+          throw new Error('الصورة فارغة أو تالفة');
+        }
+        console.log(`[Upload] blob size: ${blob.size} bytes, type: ${blob.type}`);
+
+        const { data, error: uploadError } = await supabase.storage
+          .from('listing-images')
+          .upload(filename, blob, { contentType, upsert: false });
+
+        console.log('[Upload] response data:', JSON.stringify(data));
+        if (uploadError) {
+          console.error('[Upload] supabase error:', uploadError);
+          throw uploadError;
+        }
+        if (!data) {
+          throw new Error('فشل رفع الصورة، حاول مرة أخرى');
+        }
+        const path = data?.path ?? null;
+        if (!path) {
+          console.error('[Upload] missing path in response:', data);
+          throw new Error('فشل رفع الصورة، حاول مرة أخرى');
+        }
+
+        const { data: urlData } = supabase.storage.from('listing-images').getPublicUrl(path);
+        const publicUrl = urlData?.publicUrl ?? null;
+        if (!publicUrl) {
+          throw new Error('فشل الحصول على رابط الصورة');
+        }
+        console.log('[Upload] success:', publicUrl);
+        return publicUrl;
+      } catch (err: any) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.warn(`[Upload] attempt ${attempt + 1} failed:`, lastError.message);
+        if (attempt < retries) {
+          await new Promise((res) => setTimeout(res, 1000 * (attempt + 1)));
+        }
+      }
+    }
+    throw lastError ?? new Error('فشل رفع الصورة، حاول مرة أخرى');
   };
 
   const handleSubmit = async () => {
@@ -130,16 +197,21 @@ export default function AddPostScreen() {
     if (!city) { setError('الرجاء اختيار المدينة'); return; }
     if (!phone.trim()) { setError('الرجاء إدخال رقم الهاتف'); return; }
 
-    // Upload images
+    // Upload images sequentially to avoid race conditions
     let uploadedUrls: string[] = [];
     if (images.length > 0) {
       setStep('uploading');
-      try {
-        uploadedUrls = await Promise.all(images.map(uploadImage));
-      } catch (err: any) {
-        setStep('idle');
-        setError('فشل رفع الصورة: ' + (err.message || 'خطأ غير معروف'));
-        return;
+      const snapshot = [...images]; // capture current list; user may not change it now (isLoading=true)
+      for (let i = 0; i < snapshot.length; i++) {
+        try {
+          const url = await uploadImage(snapshot[i]);
+          uploadedUrls.push(url);
+        } catch (err: any) {
+          setStep('idle');
+          const msg: string = err?.message ?? '';
+          setError(msg.includes('فشل') ? msg : 'فشل رفع الصورة، حاول مرة أخرى');
+          return;
+        }
       }
     }
 
