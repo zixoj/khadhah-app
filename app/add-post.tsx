@@ -54,6 +54,12 @@ type PostType = 'exchange' | 'free';
 type DeliveryMethod = 'pickup' | 'delivery_agent' | 'direct_contact';
 type SubmitStep = 'idle' | 'uploading' | 'saving' | 'success';
 
+interface PickedImage {
+  uri: string;
+  mimeType: string;
+  fileSize?: number;
+}
+
 const RPC_ERRORS: Record<string, string> = {
   missing_title: 'الرجاء إدخال عنوان الإعلان',
   missing_category: 'الرجاء اختيار التصنيف',
@@ -78,7 +84,7 @@ export default function AddPostScreen() {
   const [city, setCity] = useState('');
   const [phone, setPhone] = useState(profile?.phone || '');
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('direct_contact');
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<PickedImage[]>([]);
   const [step, setStep] = useState<SubmitStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isUrgent, setIsUrgent] = useState(false);
@@ -88,6 +94,31 @@ export default function AddPostScreen() {
   const successOpacity = useRef(new Animated.Value(0)).current;
 
   const isLoading = step === 'uploading' || step === 'saving';
+
+  const SUPPORTED_MIME = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+  const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+  const resolveMime = (asset: ImagePicker.ImagePickerAsset): string => {
+    const m = asset.mimeType?.toLowerCase();
+    if (m && SUPPORTED_MIME.includes(m)) return m;
+    // Derive from URI extension as fallback
+    const ext = asset.uri.split('.').pop()?.toLowerCase() ?? '';
+    const map: Record<string, string> = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg',
+      png: 'image/png', webp: 'image/webp',
+      heic: 'image/heic', heif: 'image/heif',
+    };
+    return map[ext] ?? 'image/jpeg';
+  };
+
+  const mimeToExt = (mime: string): string => {
+    const map: Record<string, string> = {
+      'image/jpeg': 'jpg', 'image/jpg': 'jpg',
+      'image/png': 'png', 'image/webp': 'webp',
+      'image/heic': 'jpg', 'image/heif': 'jpg', // convert HEIC to JPEG at upload
+    };
+    return map[mime] ?? 'jpg';
+  };
 
   const pickImages = async () => {
     if (images.length >= MAX_IMAGES || isLoading) return;
@@ -100,23 +131,35 @@ export default function AddPostScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
         selectionLimit: MAX_IMAGES - images.length,
-        quality: 0.7,
+        quality: 0.75,
         exif: false,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const SUPPORTED = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
-        const valid = result.assets.filter((a) => {
-          if (!a.uri) return false;
-          const mime = a.mimeType?.toLowerCase() ?? '';
-          if (mime && !SUPPORTED.some((s) => mime.includes(s.split('/')[1]))) return false;
-          return true;
-        });
-        if (valid.length < result.assets.length) {
-          setError('بعض الملفات غير مدعومة وتم تجاهلها');
+        console.log('[ImagePicker] selected assets:', result.assets.map((a) => ({
+          uri: a.uri.slice(0, 80),
+          mimeType: a.mimeType,
+          fileSize: a.fileSize,
+          width: a.width,
+          height: a.height,
+        })));
+
+        const valid: PickedImage[] = [];
+        for (const a of result.assets) {
+          if (!a.uri) continue;
+          const mime = resolveMime(a);
+          if (!SUPPORTED_MIME.includes(mime)) {
+            console.warn('[ImagePicker] unsupported mime, skipping:', mime);
+            continue;
+          }
+          if (a.fileSize && a.fileSize > MAX_FILE_BYTES) {
+            setError('حجم الصورة كبير، حاول بصورة أصغر');
+            continue;
+          }
+          valid.push({ uri: a.uri, mimeType: mime, fileSize: a.fileSize });
         }
         if (valid.length > 0) {
-          const newUris = valid.map((a) => a.uri);
-          setImages((prev) => [...prev, ...newUris].slice(0, MAX_IMAGES));
+          setImages((prev) => [...prev, ...valid].slice(0, MAX_IMAGES));
+          setError(null);
         }
       }
     } catch (err) {
@@ -130,60 +173,85 @@ export default function AddPostScreen() {
     setImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const uploadImage = async (uri: string, retries = 2): Promise<string> => {
+  // Returns { publicUrl, storagePath }
+  const uploadImage = async (
+    img: PickedImage,
+    retries = 2,
+  ): Promise<{ publicUrl: string; storagePath: string }> => {
     if (!profile?.id) throw new Error('المستخدم غير مسجّل الدخول');
-    if (!uri || uri.trim() === '') throw new Error('مسار الصورة غير صالح');
+    if (!img.uri) throw new Error('مسار الصورة غير صالح');
 
-    const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const safeExt = ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ? ext : 'jpg';
-    const filename = `${profile.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${safeExt}`;
-    const contentType = safeExt === 'png' ? 'image/png' : safeExt === 'webp' ? 'image/webp' : 'image/jpeg';
+    // HEIC/HEIF — Expo already transcodes to JPEG at quality<1, so treat as jpeg
+    const effectiveMime = img.mimeType.startsWith('image/hei') ? 'image/jpeg' : img.mimeType;
+    const ext = mimeToExt(effectiveMime);
+    const uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    // Path must start with auth.uid() to satisfy the storage INSERT policy
+    const storagePath = `${profile.id}/${uniqueId}.${ext}`;
+
+    console.log('[Upload] starting — bucket: listing-images, path:', storagePath, 'mime:', effectiveMime);
 
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        console.log(`[Upload] attempt ${attempt + 1} — file: ${filename}`);
-
-        const fetchResponse = await fetch(uri);
-        if (!fetchResponse.ok) {
-          throw new Error(`فشل قراءة الصورة (${fetchResponse.status})`);
+        // --- Fetch the local URI into a Blob ---
+        // On web: uri is a blob: URL — fetch works fine.
+        // On iOS: uri is a file:// path — fetch works via React Native's network layer.
+        // On Android: uri is a content:// or file:// path — fetch works.
+        const fetchRes = await fetch(img.uri);
+        if (!fetchRes.ok) {
+          throw new Error(`فشل قراءة الصورة من الجهاز (${fetchRes.status})`);
         }
-        const blob = await fetchResponse.blob();
+        const blob = await fetchRes.blob();
+        console.log(`[Upload] attempt ${attempt + 1} — blob: ${blob.size} bytes, blobType: "${blob.type}"`);
+
         if (!blob || blob.size === 0) {
           throw new Error('الصورة فارغة أو تالفة');
         }
-        console.log(`[Upload] blob size: ${blob.size} bytes, type: ${blob.type}`);
+        if (blob.size > MAX_FILE_BYTES) {
+          throw new Error('حجم الصورة كبير، حاول بصورة أصغر');
+        }
+
+        // Use a new Blob with the correct MIME type — blob.type may be empty on some platforms
+        const typedBlob = blob.type ? blob : new Blob([blob], { type: effectiveMime });
 
         const { data, error: uploadError } = await supabase.storage
           .from('listing-images')
-          .upload(filename, blob, { contentType, upsert: false });
+          .upload(storagePath, typedBlob, {
+            contentType: effectiveMime,
+            upsert: false,
+            cacheControl: '3600',
+          });
 
-        console.log('[Upload] response data:', JSON.stringify(data));
+        console.log('[Upload] supabase response — data:', JSON.stringify(data), 'error:', uploadError);
+
         if (uploadError) {
-          console.error('[Upload] supabase error:', uploadError);
-          throw uploadError;
+          // "already exists" should not happen with unique filenames, but handle gracefully
+          console.error('[Upload] supabase error:', uploadError.message, uploadError);
+          throw new Error(uploadError.message || 'فشل رفع الصورة، حاول مرة أخرى');
         }
-        if (!data) {
-          throw new Error('فشل رفع الصورة، حاول مرة أخرى');
-        }
-        const path = data?.path ?? null;
-        if (!path) {
-          console.error('[Upload] missing path in response:', data);
+
+        const uploadedPath = data?.path ?? null;
+        if (!uploadedPath) {
+          console.error('[Upload] response missing path. Full data:', data);
           throw new Error('فشل رفع الصورة، حاول مرة أخرى');
         }
 
-        const { data: urlData } = supabase.storage.from('listing-images').getPublicUrl(path);
+        const { data: urlData } = supabase.storage
+          .from('listing-images')
+          .getPublicUrl(uploadedPath);
+
         const publicUrl = urlData?.publicUrl ?? null;
         if (!publicUrl) {
           throw new Error('فشل الحصول على رابط الصورة');
         }
-        console.log('[Upload] success:', publicUrl);
-        return publicUrl;
+
+        console.log('[Upload] success — publicUrl:', publicUrl);
+        return { publicUrl, storagePath: uploadedPath };
       } catch (err: any) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        console.warn(`[Upload] attempt ${attempt + 1} failed:`, lastError.message);
+        lastError = err instanceof Error ? err : new Error(String(err?.message ?? err));
+        console.warn(`[Upload] attempt ${attempt + 1}/${retries + 1} failed:`, lastError.message);
         if (attempt < retries) {
-          await new Promise((res) => setTimeout(res, 1000 * (attempt + 1)));
+          await new Promise((res) => setTimeout(res, 1200 * (attempt + 1)));
         }
       }
     }
@@ -197,27 +265,35 @@ export default function AddPostScreen() {
     if (!city) { setError('الرجاء اختيار المدينة'); return; }
     if (!phone.trim()) { setError('الرجاء إدخال رقم الهاتف'); return; }
 
-    // Upload images sequentially to avoid race conditions
-    let uploadedUrls: string[] = [];
+    // --- Step 1: Upload all images first, sequentially (avoids race conditions) ---
+    type UploadedImage = { publicUrl: string; storagePath: string };
+    const uploaded: UploadedImage[] = [];
+
     if (images.length > 0) {
       setStep('uploading');
-      const snapshot = [...images]; // capture current list; user may not change it now (isLoading=true)
+      // Snapshot so user cannot mutate list while uploading (isLoading=true disables UI)
+      const snapshot = [...images];
       for (let i = 0; i < snapshot.length; i++) {
         try {
-          const url = await uploadImage(snapshot[i]);
-          uploadedUrls.push(url);
+          const result = await uploadImage(snapshot[i]);
+          uploaded.push(result);
         } catch (err: any) {
           setStep('idle');
-          const msg: string = err?.message ?? '';
-          setError(msg.includes('فشل') ? msg : 'فشل رفع الصورة، حاول مرة أخرى');
+          const raw: string = err?.message ?? '';
+          const arabic = raw.includes('حجم') ? raw
+            : raw.includes('فشل') || raw.includes('خطأ') ? raw
+            : 'فشل رفع الصورة، حاول مرة أخرى';
+          setError(arabic);
+          console.error('[handleSubmit] upload failed at index', i, ':', raw);
           return;
         }
       }
     }
 
+    // --- Step 2: Create the listing record ---
     setStep('saving');
 
-    // Create the listing (first image as main image_url)
+    const primaryUrl = uploaded[0]?.publicUrl ?? '';
     const { data, error: rpcError } = await supabase.rpc('create_listing', {
       p_title: title.trim(),
       p_description: description.trim(),
@@ -226,10 +302,12 @@ export default function AddPostScreen() {
       p_city: city,
       p_phone: phone.trim(),
       p_delivery_method: deliveryMethod,
-      p_image_url: uploadedUrls[0] || '',
+      p_image_url: primaryUrl,
       p_is_urgent: isUrgent,
       p_dual_mode: dualMode,
     });
+
+    console.log('[handleSubmit] create_listing RPC result:', JSON.stringify(data), rpcError);
 
     if (rpcError) {
       setStep('idle');
@@ -243,14 +321,23 @@ export default function AddPostScreen() {
       return;
     }
 
-    // Store additional images in post_images table (images 2–5)
-    if (uploadedUrls.length > 1 && data.listing_id) {
-      const extraImages = uploadedUrls.slice(1).map((url, idx) => ({
-        post_id: data.listing_id,
-        image_url: url,
-        sort_order: idx + 1,
+    const listingId: string | null = data?.listing_id ?? null;
+
+    // --- Step 3: Insert all images into post_images (including primary at sort_order=0) ---
+    if (uploaded.length > 0 && listingId) {
+      const rows = uploaded.map((img, idx) => ({
+        post_id: listingId,
+        image_url: img.publicUrl,
+        sort_order: idx,
+        user_id: profile!.id,
       }));
-      await supabase.from('post_images').insert(extraImages);
+      const { error: imgInsertError } = await supabase.from('post_images').insert(rows);
+      if (imgInsertError) {
+        // Non-fatal: listing was created; log the error but don't block success
+        console.error('[handleSubmit] post_images insert error:', imgInsertError);
+      } else {
+        console.log('[handleSubmit] post_images inserted:', rows.length, 'rows for listing', listingId);
+      }
     }
 
     setStep('success');
@@ -414,9 +501,9 @@ export default function AddPostScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.imagesRow}
         >
-          {images.map((uri, idx) => (
-            <View key={uri} style={styles.imageThumbWrap}>
-              <Image source={{ uri }} style={styles.imageThumb} />
+          {images.map((img, idx) => (
+            <View key={`${img.uri}-${idx}`} style={styles.imageThumbWrap}>
+              <Image source={{ uri: img.uri }} style={styles.imageThumb} />
               {idx === 0 && (
                 <View style={styles.mainBadge}>
                   <Text style={styles.mainBadgeText}>رئيسية</Text>
