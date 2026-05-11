@@ -32,28 +32,35 @@ export default function NotificationsSettingsScreen() {
 
   useEffect(() => {
     fetchSettings();
-  }, []);
+  }, [profile?.id]);
 
   const fetchSettings = async () => {
-    const { data } = await supabase.from('user_settings').select('*').eq('user_id', profile!.id).maybeSingle();
-    if (data) {
-      setSettings({
-        notify_messages: data.notify_messages,
-        notify_delivery: data.notify_delivery,
-        notify_listings: data.notify_listings,
-        messages_in_app_only: data.messages_in_app_only,
-      });
+    if (!profile?.id) { setLoading(false); return; }
+    try {
+      const { data } = await supabase.from('user_settings').select('*').eq('user_id', profile.id).maybeSingle();
+      if (data) {
+        setSettings({
+          notify_messages: data.notify_messages,
+          notify_delivery: data.notify_delivery,
+          notify_listings: data.notify_listings,
+          messages_in_app_only: data.messages_in_app_only,
+        });
+      }
+    } catch (e) {
+      console.error('[notifications-settings] fetchSettings:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const saveSettings = async () => {
+    if (!profile?.id) return;
     setSaving(true);
-    const { data: existing } = await supabase.from('user_settings').select('id').eq('user_id', profile!.id).maybeSingle();
+    const { data: existing } = await supabase.from('user_settings').select('id').eq('user_id', profile.id).maybeSingle();
     if (existing) {
-      await supabase.from('user_settings').update({ ...settings, updated_at: new Date().toISOString() }).eq('user_id', profile!.id);
+      await supabase.from('user_settings').update({ ...settings, updated_at: new Date().toISOString() }).eq('user_id', profile.id);
     } else {
-      await supabase.from('user_settings').insert({ user_id: profile!.id, ...settings });
+      await supabase.from('user_settings').insert({ user_id: profile.id, ...settings });
     }
     setSaving(false);
     setSaved(true);

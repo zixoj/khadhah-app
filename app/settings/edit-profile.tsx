@@ -70,27 +70,33 @@ export default function EditProfileScreen() {
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [baseProfile?.id]);
 
   const fetchProfile = async () => {
+    if (!baseProfile?.id) { setLoading(false); return; }
     setLoading(true);
-    const { data } = await supabase
-      .from('profiles')
-      .select('full_name, display_name, username, phone, city, role, avatar_url, last_display_name_change_at, last_username_change_at')
-      .eq('id', baseProfile!.id)
-      .maybeSingle();
-    if (data) {
-      setFullName(data.full_name || '');
-      setDisplayName(data.display_name || '');
-      setUsername(data.username || '');
-      setPhone(data.phone || '');
-      setCity(data.city || '');
-      setRole(data.role || 'advertiser');
-      setCurrentAvatarUrl(data.avatar_url || '');
-      setLastDisplayNameChange(data.last_display_name_change_at || null);
-      setLastUsernameChange(data.last_username_change_at || null);
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name, display_name, username, phone, city, role, avatar_url, last_display_name_change_at, last_username_change_at')
+        .eq('id', baseProfile.id)
+        .maybeSingle();
+      if (data) {
+        setFullName(data.full_name || '');
+        setDisplayName(data.display_name || '');
+        setUsername(data.username || '');
+        setPhone(data.phone || '');
+        setCity(data.city || '');
+        setRole(data.role || 'advertiser');
+        setCurrentAvatarUrl(data.avatar_url || '');
+        setLastDisplayNameChange(data.last_display_name_change_at || null);
+        setLastUsernameChange(data.last_username_change_at || null);
+      }
+    } catch (e) {
+      console.error('[edit-profile] fetchProfile:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const getDaysUntilAllowed = (lastChangeAt: string | null, cooldownDays: number): number => {
@@ -125,7 +131,7 @@ export default function EditProfileScreen() {
   };
 
   const uploadAvatar = async (uri: string): Promise<string> => {
-    const filename = `${baseProfile!.id}/avatar.jpg`;
+    const filename = `${baseProfile?.id ?? 'unknown'}/avatar.jpg`;
     const response = await fetch(uri);
     const blob = await response.blob();
     const { data, error: uploadError } = await supabase.storage
@@ -137,6 +143,7 @@ export default function EditProfileScreen() {
   };
 
   const handleSave = async () => {
+    if (!baseProfile?.id) return;
     if (!fullName.trim()) {
       setError('الرجاء إدخال الاسم الكامل');
       return;

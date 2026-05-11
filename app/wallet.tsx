@@ -42,31 +42,38 @@ export default function WalletScreen() {
 
   useEffect(() => {
     fetchWallet();
-  }, []);
+  }, [profile?.id]);
 
   const fetchWallet = async () => {
-    const [profileRes, txRes] = await Promise.all([
-      supabase.from('profiles').select('wallet_balance').eq('id', profile!.id).maybeSingle(),
-      supabase.from('wallet_transactions').select('*').eq('user_id', profile!.id).order('created_at', { ascending: false }).limit(20),
-    ]);
-    if (profileRes.data) setBalance(profileRes.data.wallet_balance || 0);
-    if (txRes.data) setTransactions(txRes.data);
-    setLoading(false);
+    if (!profile?.id) { setLoading(false); return; }
+    try {
+      const [profileRes, txRes] = await Promise.all([
+        supabase.from('profiles').select('wallet_balance').eq('id', profile.id).maybeSingle(),
+        supabase.from('wallet_transactions').select('*').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(20),
+      ]);
+      if (profileRes.data) setBalance(profileRes.data.wallet_balance || 0);
+      if (txRes.data) setTransactions(txRes.data);
+    } catch (e) {
+      console.error('[wallet] fetchWallet:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTopUp = async (amount: number) => {
+    if (!profile?.id) return;
     setTopping(true);
     // Credit top-up: update balance + insert credit tx (both allowed by RLS for positive credits)
     const newBalance = balance + amount;
-    await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', profile!.id);
+    await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', profile?.id ?? '');
     await supabase.from('wallet_transactions').insert({
-      user_id: profile!.id,
+      user_id: profile?.id ?? '',
       amount,
       type: 'credit',
       description: `إضافة رصيد ${amount} ر.س`,
     });
     await supabase.from('activity_log').insert({
-      user_id: profile!.id,
+      user_id: profile?.id ?? '',
       action: 'wallet_topup',
       description: `تم إضافة ${amount} ر.س إلى المحفظة`,
     });
@@ -89,7 +96,7 @@ export default function WalletScreen() {
         onPress: async () => {
           // Use secure RPC: debit is handled server-side, no direct debit insert from client
           const { error } = await supabase.rpc('spend_wallet', {
-            p_user_id: profile!.id,
+            p_user_id: profile?.id ?? '',
             p_amount: cost,
             p_desc: 'شراء بوست لتمييز إعلان',
           });

@@ -66,32 +66,39 @@ export default function PrivacySecurityScreen() {
 
   useEffect(() => {
     fetchPrivacySettings();
-  }, []);
+  }, [profile?.id]);
 
   const fetchPrivacySettings = async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('show_phone, allow_whatsapp, allow_messages')
-      .eq('id', profile!.id)
-      .maybeSingle();
-    if (data) {
-      setPrivacy({
-        show_phone: data.show_phone ?? true,
-        allow_whatsapp: data.allow_whatsapp ?? true,
-        allow_messages: data.allow_messages ?? true,
-      });
+    if (!profile?.id) { setLoading(false); return; }
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('show_phone, allow_whatsapp, allow_messages')
+        .eq('id', profile.id)
+        .maybeSingle();
+      if (data) {
+        setPrivacy({
+          show_phone: data.show_phone ?? true,
+          allow_whatsapp: data.allow_whatsapp ?? true,
+          allow_messages: data.allow_messages ?? true,
+        });
+      }
+    } catch (e) {
+      console.error('[privacy-security] fetchPrivacySettings:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const savePrivacy = async () => {
+    if (!profile?.id) return;
     setSaving(true);
     setError(null);
     setSaveSuccess(false);
     const { error: updateError } = await supabase
       .from('profiles')
       .update(privacy)
-      .eq('id', profile!.id);
+      .eq('id', profile.id);
     if (updateError) {
       setError(updateError.message);
     } else {
@@ -128,11 +135,12 @@ export default function PrivacySecurityScreen() {
   };
 
   const fetchBlockedUsers = async () => {
+    if (!profile?.id) return;
     setBlockedLoading(true);
     const { data: blocks } = await supabase
       .from('user_blocks')
       .select('blocked_id')
-      .eq('blocker_id', profile!.id);
+      .eq('blocker_id', profile.id);
 
     if (blocks && blocks.length > 0) {
       const ids = blocks.map((b: any) => b.blocked_id);
@@ -153,10 +161,11 @@ export default function PrivacySecurityScreen() {
   };
 
   const unblockUser = async (blockedId: string) => {
+    if (!profile?.id) return;
     await supabase
       .from('user_blocks')
       .delete()
-      .eq('blocker_id', profile!.id)
+      .eq('blocker_id', profile.id)
       .eq('blocked_id', blockedId);
     setBlockedUsers((prev) => prev.filter((u) => u.id !== blockedId));
   };
@@ -169,10 +178,11 @@ export default function PrivacySecurityScreen() {
 
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== 'حذف') return;
+    if (!profile?.id) return;
     await supabase
       .from('profiles')
       .update({ full_name: '[محذوف]', phone: '', avatar_url: '', city: '' })
-      .eq('id', profile!.id);
+      .eq('id', profile.id);
     await signOut();
     router.replace('/(auth)/login');
   };

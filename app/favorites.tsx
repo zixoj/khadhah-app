@@ -38,16 +38,22 @@ export default function FavoritesScreen() {
 
   useEffect(() => {
     fetchFavorites();
-  }, []);
+  }, [profile?.id]);
 
   const fetchFavorites = async () => {
-    const { data } = await supabase
-      .from('favorites')
-      .select('id, listing_id, listings(id, title, type, category, city, image_url)')
-      .eq('user_id', profile!.id)
-      .order('created_at', { ascending: false });
-    if (data) setFavorites(data as any);
-    setLoading(false);
+    if (!profile?.id) { setLoading(false); return; }
+    try {
+      const { data } = await supabase
+        .from('favorites')
+        .select('id, listing_id, listings(id, title, type, category, city, image_url)')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false });
+      if (data) setFavorites(data as any);
+    } catch (e) {
+      console.error('[favorites] fetchFavorites:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const removeFavorite = async (favId: string) => {

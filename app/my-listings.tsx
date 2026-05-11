@@ -55,16 +55,22 @@ export default function MyListingsScreen() {
 
   useEffect(() => {
     fetchListings();
-  }, []);
+  }, [profile?.id]);
 
   const fetchListings = async () => {
-    const { data } = await supabase
-      .from('listings')
-      .select('id, title, type, category, city, image_url, views_count, status, created_at')
-      .eq('user_id', profile!.id)
-      .order('created_at', { ascending: false });
-    if (data) setListings(data);
-    setLoading(false);
+    if (!profile?.id) { setLoading(false); return; }
+    try {
+      const { data } = await supabase
+        .from('listings')
+        .select('id, title, type, category, city, image_url, views_count, status, created_at')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false });
+      if (data) setListings(data);
+    } catch (e) {
+      console.error('[my-listings] fetchListings:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const confirmDelete = (id: string) => {
@@ -85,7 +91,7 @@ export default function MyListingsScreen() {
       .from('listings')
       .delete()
       .eq('id', idToDelete)
-      .eq('user_id', profile!.id)
+      .eq('user_id', profile?.id ?? '')
       .select('id');
 
     if (error) {
@@ -103,11 +109,13 @@ export default function MyListingsScreen() {
     }
 
     console.log('DELETE SUCCESS', idToDelete);
-    supabase.from('activity_log').insert({
-      user_id: profile!.id,
-      action: 'listing_deleted',
-      description: 'تم حذف إعلان',
-    });
+    if (profile?.id) {
+      supabase.from('activity_log').insert({
+        user_id: profile.id,
+        action: 'listing_deleted',
+        description: 'تم حذف إعلان',
+      });
+    }
 
     setListings((prev) => prev.filter((l) => l.id !== idToDelete));
     setDeletingId(null);

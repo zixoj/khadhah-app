@@ -26,17 +26,24 @@ export default function PrivacySettingsScreen() {
 
   useEffect(() => {
     fetchPrivacySettings();
-  }, []);
+  }, [profile?.id]);
 
   const fetchPrivacySettings = async () => {
-    const { data } = await supabase.from('profiles').select('show_phone').eq('id', profile!.id).maybeSingle();
-    if (data) setShowPhone(data.show_phone ?? true);
-    setLoading(false);
+    if (!profile?.id) { setLoading(false); return; }
+    try {
+      const { data } = await supabase.from('profiles').select('show_phone').eq('id', profile.id).maybeSingle();
+      if (data) setShowPhone(data.show_phone ?? true);
+    } catch (e) {
+      console.error('[privacy-settings] fetchPrivacySettings:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const savePrivacy = async () => {
+    if (!profile?.id) return;
     setSaving(true);
-    await supabase.from('profiles').update({ show_phone: showPhone }).eq('id', profile!.id);
+    await supabase.from('profiles').update({ show_phone: showPhone }).eq('id', profile.id);
     setSaving(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);

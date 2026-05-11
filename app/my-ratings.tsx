@@ -27,20 +27,26 @@ export default function MyRatingsScreen() {
 
   useEffect(() => {
     fetchRatings();
-  }, []);
+  }, [profile?.id]);
 
   const fetchRatings = async () => {
-    const { data } = await supabase
-      .from('ratings')
-      .select('id, stars, comment, created_at, reviewer:reviewer_id(full_name, avatar_url)')
-      .eq('reviewed_id', profile!.id)
-      .order('created_at', { ascending: false });
-    if (data && data.length > 0) {
-      setRatings(data as any);
-      const avg = data.reduce((sum, r: any) => sum + r.stars, 0) / data.length;
-      setAvgRating(avg);
+    if (!profile?.id) { setLoading(false); return; }
+    try {
+      const { data } = await supabase
+        .from('ratings')
+        .select('id, stars, comment, created_at, reviewer:reviewer_id(full_name, avatar_url)')
+        .eq('reviewed_id', profile.id)
+        .order('created_at', { ascending: false });
+      if (data && data.length > 0) {
+        setRatings(data as any);
+        const avg = data.reduce((sum, r: any) => sum + r.stars, 0) / data.length;
+        setAvgRating(avg);
+      }
+    } catch (e) {
+      console.error('[my-ratings] fetchRatings:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const renderStars = (count: number, size = 16) =>

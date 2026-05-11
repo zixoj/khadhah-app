@@ -25,17 +25,23 @@ export default function ActivityLogScreen() {
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [profile?.id]);
 
   const fetchLogs = async () => {
-    const { data } = await supabase
-      .from('activity_log')
-      .select('*')
-      .eq('user_id', profile!.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    if (data) setLogs(data);
-    setLoading(false);
+    if (!profile?.id) { setLoading(false); return; }
+    try {
+      const { data } = await supabase
+        .from('activity_log')
+        .select('*')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (data) setLogs(data);
+    } catch (e) {
+      console.error('[activity-log] fetchLogs:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getActionIcon = (action: string) => {
