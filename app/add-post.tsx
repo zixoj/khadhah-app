@@ -181,42 +181,44 @@ export default function AddPostScreen() {
     if (!profile?.id) throw new Error('المستخدم غير مسجّل الدخول');
     if (!img.uri) throw new Error('مسار الصورة غير صالح');
 
-    // HEIC/HEIF — Expo already transcodes to JPEG at quality<1, so treat as jpeg
+    // HEIC/HEIF — Expo transcodes to JPEG at quality < 1, treat as jpeg
     const effectiveMime = img.mimeType.startsWith('image/hei') ? 'image/jpeg' : img.mimeType;
     const ext = mimeToExt(effectiveMime);
     const uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    // Path must start with auth.uid() to satisfy the storage INSERT policy
+    // Path must start with auth.uid() — enforced by storage INSERT policy
     const storagePath = `${profile.id}/${uniqueId}.${ext}`;
 
-    console.log('[Upload] starting — bucket: listing-images, path:', storagePath, 'mime:', effectiveMime);
+    console.log('[Upload] start — bucket: listing-images, path:', storagePath, 'mime:', effectiveMime);
 
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        // --- Fetch the local URI into a Blob ---
-        // On web: uri is a blob: URL — fetch works fine.
-        // On iOS: uri is a file:// path — fetch works via React Native's network layer.
-        // On Android: uri is a content:// or file:// path — fetch works.
+        // ── Read image bytes ────────────────────────────────────────────────
+        // CRITICAL: Supabase storage-js v2 wraps Blob in FormData with an empty
+        // key ("") which breaks on React Native (iOS/Android). The contentType
+        // option is also silently ignored in the Blob code path.
+        // Fix: convert to ArrayBuffer — takes the raw-body code path that correctly
+        // sets the content-type header and works on all platforms.
         const fetchRes = await fetch(img.uri);
         if (!fetchRes.ok) {
           throw new Error(`فشل قراءة الصورة من الجهاز (${fetchRes.status})`);
         }
-        const blob = await fetchRes.blob();
-        console.log(`[Upload] attempt ${attempt + 1} — blob: ${blob.size} bytes, blobType: "${blob.type}"`);
 
-        if (!blob || blob.size === 0) {
+        const arrayBuffer = await fetchRes.arrayBuffer();
+        console.log(`[Upload] attempt ${attempt + 1} — bytes: ${arrayBuffer.byteLength}, mime: ${effectiveMime}`);
+
+        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
           throw new Error('الصورة فارغة أو تالفة');
         }
-        if (blob.size > MAX_FILE_BYTES) {
+        if (arrayBuffer.byteLength > MAX_FILE_BYTES) {
           throw new Error('حجم الصورة كبير، حاول بصورة أصغر');
         }
 
-        // Use a new Blob with the correct MIME type — blob.type may be empty on some platforms
-        const typedBlob = blob.type ? blob : new Blob([blob], { type: effectiveMime });
-
+        // ArrayBuffer → Supabase takes the non-FormData path → sends raw bytes
+        // with the explicit content-type header. Works on web, iOS, and Android.
         const { data, error: uploadError } = await supabase.storage
           .from('listing-images')
-          .upload(storagePath, typedBlob, {
+          .upload(storagePath, arrayBuffer, {
             contentType: effectiveMime,
             upsert: false,
             cacheControl: '3600',
@@ -225,14 +227,13 @@ export default function AddPostScreen() {
         console.log('[Upload] supabase response — data:', JSON.stringify(data), 'error:', uploadError);
 
         if (uploadError) {
-          // "already exists" should not happen with unique filenames, but handle gracefully
           console.error('[Upload] supabase error:', uploadError.message, uploadError);
           throw new Error(uploadError.message || 'فشل رفع الصورة، حاول مرة أخرى');
         }
 
         const uploadedPath = data?.path ?? null;
         if (!uploadedPath) {
-          console.error('[Upload] response missing path. Full data:', data);
+          console.error('[Upload] missing path in response:', data);
           throw new Error('فشل رفع الصورة، حاول مرة أخرى');
         }
 
