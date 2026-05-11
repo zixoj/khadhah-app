@@ -15,6 +15,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { File as FSFile } from 'expo-file-system';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
@@ -173,6 +174,21 @@ export default function AddPostScreen() {
     setImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // Reads image bytes as ArrayBuffer — platform-aware.
+  // On native: expo-file-system v19 File class handles file://, content://, and
+  //   ph:// (iOS Photos) URIs reliably. fetch() on ph:// silently fails on iOS.
+  // On web: blob: URLs are network-fetchable; use fetch + arrayBuffer directly.
+  const readImageBytes = async (uri: string): Promise<ArrayBuffer> => {
+    if (Platform.OS === 'web') {
+      const res = await fetch(uri);
+      if (!res.ok) throw new Error(`فشل قراءة الصورة (${res.status})`);
+      return res.arrayBuffer();
+    }
+    // Native: FSFile wraps the URI and exposes arrayBuffer() from the Blob interface
+    const file = new FSFile(uri);
+    return file.arrayBuffer();
+  };
+
   // Returns { publicUrl, storagePath }
   const uploadImage = async (
     img: PickedImage,
@@ -181,43 +197,29 @@ export default function AddPostScreen() {
     if (!profile?.id) throw new Error('المستخدم غير مسجّل الدخول');
     if (!img.uri) throw new Error('مسار الصورة غير صالح');
 
-    // HEIC/HEIF — Expo transcodes to JPEG at quality < 1, treat as jpeg
+    // HEIC/HEIF — Expo transcodes to JPEG at quality < 1; treat as jpeg
     const effectiveMime = img.mimeType.startsWith('image/hei') ? 'image/jpeg' : img.mimeType;
     const ext = mimeToExt(effectiveMime);
     const uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    // Path must start with auth.uid() — enforced by storage INSERT policy
+    // First path segment must equal auth.uid() — enforced by storage INSERT policy
     const storagePath = `${profile.id}/${uniqueId}.${ext}`;
 
-    console.log('[Upload] start — bucket: listing-images, path:', storagePath, 'mime:', effectiveMime);
+    console.log('[Upload] start — bucket: ads-images, path:', storagePath, 'mime:', effectiveMime);
 
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        // ── Read image bytes ────────────────────────────────────────────────
-        // CRITICAL: Supabase storage-js v2 wraps Blob in FormData with an empty
-        // key ("") which breaks on React Native (iOS/Android). The contentType
-        // option is also silently ignored in the Blob code path.
-        // Fix: convert to ArrayBuffer — takes the raw-body code path that correctly
-        // sets the content-type header and works on all platforms.
-        const fetchRes = await fetch(img.uri);
-        if (!fetchRes.ok) {
-          throw new Error(`فشل قراءة الصورة من الجهاز (${fetchRes.status})`);
-        }
-
-        const arrayBuffer = await fetchRes.arrayBuffer();
+        const arrayBuffer = await readImageBytes(img.uri);
         console.log(`[Upload] attempt ${attempt + 1} — bytes: ${arrayBuffer.byteLength}, mime: ${effectiveMime}`);
 
-        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-          throw new Error('الصورة فارغة أو تالفة');
-        }
-        if (arrayBuffer.byteLength > MAX_FILE_BYTES) {
-          throw new Error('حجم الصورة كبير، حاول بصورة أصغر');
-        }
+        if (arrayBuffer.byteLength === 0) throw new Error('الصورة فارغة أو تالفة');
+        if (arrayBuffer.byteLength > MAX_FILE_BYTES) throw new Error('حجم الصورة كبير، حاول بصورة أصغر');
 
-        // ArrayBuffer → Supabase takes the non-FormData path → sends raw bytes
-        // with the explicit content-type header. Works on web, iOS, and Android.
+        // Pass ArrayBuffer (not Blob) so Supabase storage-js sends raw bytes with
+        // the correct content-type header. Passing a Blob causes the SDK to wrap
+        // it in FormData with an empty key ("") which breaks on React Native.
         const { data, error: uploadError } = await supabase.storage
-          .from('listing-images')
+          .from('ads-images')
           .upload(storagePath, arrayBuffer, {
             contentType: effectiveMime,
             upsert: false,
@@ -238,13 +240,11 @@ export default function AddPostScreen() {
         }
 
         const { data: urlData } = supabase.storage
-          .from('listing-images')
+          .from('ads-images')
           .getPublicUrl(uploadedPath);
 
         const publicUrl = urlData?.publicUrl ?? null;
-        if (!publicUrl) {
-          throw new Error('فشل الحصول على رابط الصورة');
-        }
+        if (!publicUrl) throw new Error('فشل الحصول على رابط الصورة');
 
         console.log('[Upload] success — publicUrl:', publicUrl);
         return { publicUrl, storagePath: uploadedPath };
