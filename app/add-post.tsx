@@ -74,7 +74,7 @@ export default function AddPostScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { type: typeParam } = useLocalSearchParams<{ type: string }>();
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const { colors: C, isDark } = useTheme();
 
   const [postType, setPostType] = useState<PostType>(typeParam === 'free' ? 'free' : 'exchange');
@@ -94,6 +94,7 @@ export default function AddPostScreen() {
   const successOpacity = useRef(new Animated.Value(0)).current;
 
   const isLoading = step === 'uploading' || step === 'saving';
+  const isSubmitDisabled = isLoading || authLoading || !profile?.id;
 
   const SUPPORTED_MIME = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
   const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -263,6 +264,20 @@ export default function AddPostScreen() {
 
   const handleSubmit = async () => {
     setError(null);
+
+    // ── Auth guard ──────────────────────────────────────────────────────────
+    console.log('[AddPost] USER (profile):', profile);
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log('[AddPost] supabase.auth.getUser ->', user?.id ?? 'NO USER', userError?.message ?? '');
+    if (userError || !user?.id) {
+      setError('جلسة المستخدم غير موجودة، يرجى تسجيل الدخول مجدداً');
+      return;
+    }
+    if (!profile?.id) {
+      setError('لم يتم تحميل بيانات الملف الشخصي، يرجى المحاولة مجدداً');
+      return;
+    }
+
     if (!title.trim()) { setError('الرجاء إدخال عنوان الإعلان'); return; }
     if (!category) { setError('الرجاء اختيار التصنيف'); return; }
     if (!city) { setError('الرجاء اختيار المدينة'); return; }
@@ -335,7 +350,7 @@ export default function AddPostScreen() {
         post_id: listingId,
         image_url: img.publicUrl,
         sort_order: idx,
-        user_id: profile!.id,
+        user_id: user.id,
       }));
       const { error: imgInsertError } = await supabase.from('post_images').insert(rows);
       if (imgInsertError) {
@@ -653,9 +668,9 @@ export default function AddPostScreen() {
 
         {/* ── زر النشر ── */}
         <TouchableOpacity
-          style={[styles.submitBtn, { backgroundColor: C.primary, shadowColor: C.primary, opacity: isLoading ? 0.7 : 1 }]}
+          style={[styles.submitBtn, { backgroundColor: C.primary, shadowColor: C.primary, opacity: isSubmitDisabled ? 0.7 : 1 }]}
           onPress={handleSubmit}
-          disabled={isLoading}
+          disabled={isSubmitDisabled}
           activeOpacity={0.85}
         >
           {isLoading ? (
