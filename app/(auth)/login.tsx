@@ -448,8 +448,10 @@ export default function LoginScreen() {
     }
     setLoading(true);
     setError(null);
+    console.log('[LoginScreen] Attempting login for:', email.trim());
     try {
       const { error: err } = await signIn(email.trim(), password);
+      console.log('[LoginScreen] Login result:', err ? 'error: ' + err : 'success');
       if (err) setError(err);
     } catch (e: any) {
       console.error('[Login] Network error:', e);
