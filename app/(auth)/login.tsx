@@ -448,9 +448,15 @@ export default function LoginScreen() {
     }
     setLoading(true);
     setError(null);
-    const { error: err } = await signIn(email.trim(), password);
-    if (err) setError(err);
-    setLoading(false);
+    try {
+      const { error: err } = await signIn(email.trim(), password);
+      if (err) setError(err);
+    } catch (e: any) {
+      console.error('[Login] Network error:', e);
+      setError('مشكلة اتصال بالسيرفر. تحقق من الإنترنت وأعد المحاولة');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const glowScale   = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] });

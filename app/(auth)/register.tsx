@@ -65,11 +65,21 @@ export default function RegisterScreen() {
       setError('الرجاء تعبئة جميع الحقول');
       return;
     }
+    if (password.length < 6) {
+      setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
     setLoading(true);
     setError(null);
-    const { error: err } = await signUp(email.trim(), password, fullName.trim(), role, phone.trim());
-    if (err) setError(err);
-    setLoading(false);
+    try {
+      const { error: err } = await signUp(email.trim(), password, fullName.trim(), role, phone.trim());
+      if (err) setError(err);
+    } catch (e: any) {
+      console.error('[Register] Network error:', e);
+      setError('مشكلة اتصال بالسيرفر. تحقق من الإنترنت وأعد المحاولة');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputStyle = (field: string) => [
