@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   TextInput,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +16,7 @@ import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { Spacing, FontSizes } from '@/lib/theme';
 import { ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin, Heart, Search } from 'lucide-react-native';
+import VerseCard from '@/components/VerseCard';
 
 interface RecentListing {
   id: string;
@@ -88,6 +90,11 @@ export default function HomeScreen() {
           <Text style={[styles.heroSub, { color: C.textSecondary }]}>
             اعرض أغراضك مجانًا أو بدّلها بما تحتاجه
           </Text>
+        </View>
+
+        {/* ── Quran verse card ── */}
+        <View style={styles.verseCardWrap}>
+          <VerseCard isDark={isDark} delay={200} />
         </View>
 
         {/* ── Search bar ── */}
@@ -326,6 +333,11 @@ const styles = StyleSheet.create({
     borderRadius: 16, borderWidth: 1,
   },
   searchPlaceholder: { fontSize: FontSizes.md, flex: 1, textAlign: 'right' },
+
+  verseCardWrap: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
 
   cardRow: {
     flexDirection: 'row',

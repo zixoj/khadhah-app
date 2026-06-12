@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
+import VerseCard from '@/components/VerseCard';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 
@@ -529,6 +530,9 @@ export default function LoginScreen() {
             <View style={styles.appNameUnderline} />
             <Text style={styles.tagline}>بدّل أو اعطِ بكل سهولة</Text>
           </Animated.View>
+
+          {/* ── Quran verse card ── */}
+          <VerseCard isDark delay={400} />
 
           {/* ── Glass form card ── */}
           <Animated.View
