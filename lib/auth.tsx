@@ -50,22 +50,40 @@ const AUTH_ERROR_MAP: Record<string, string> = {
 };
 
 // Translate Supabase auth error to Arabic
+// Logs full error details to console, returns Arabic message to user
 function translateAuthError(error: AuthError): string {
   const msg = error.message || '';
   const code = error.code || '';
-  console.log('[Auth] Supabase auth error - code:', code, 'message:', msg);
+  const status = error.status || 0;
 
+  // Log full error object to console for debugging
+  console.log('[Auth] ====== FULL SUPABASE ERROR ======');
+  console.log('[Auth] Error object:', JSON.stringify(error, null, 2));
+  console.log('[Auth] Error code:', code);
+  console.log('[Auth] Error message:', msg);
+  console.log('[Auth] Error status:', status);
+  console.log('[Auth] ================================');
+
+  // Arabic translations - return clean message to user
   // Check by error code first (more reliable)
   if (code === 'invalid_credentials' || code === 'invalid_login_credentials') {
+    console.error('[Auth] ROOT CAUSE: Email not found OR password does not match');
+    console.error('[Auth] POSSIBLE FIXES:');
+    console.error('[Auth]   1. User does not exist - need to register first');
+    console.error('[Auth]   2. Password is wrong - check caps lock, spelling');
+    console.error('[Auth]   3. Email typo - verify the email address');
     return 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
   }
   if (code === 'email_not_confirmed') {
+    console.error('[Auth] ROOT CAUSE: Email confirmation required');
+    console.error('[Auth] FIX: User must click confirmation link in email');
     return 'البريد الإلكتروني غير مفعل. تحقق من بريدك';
   }
   if (code === 'user_already_exists') {
     return 'البريد الإلكتروني مسجل مسبقاً. سجل الدخول';
   }
   if (code === 'user_not_found') {
+    console.error('[Auth] ROOT CAUSE: Email not registered in auth.users');
     return 'البريد الإلكتروني غير مسجل في النظام';
   }
   if (code === 'invalid_email') {
@@ -79,16 +97,26 @@ function translateAuthError(error: AuthError): string {
   }
 
   // Check exact message match
-  if (AUTH_ERROR_MAP[msg]) return AUTH_ERROR_MAP[msg];
-
-  // Partial match fallback
-  for (const [key, arMsg] of Object.entries(AUTH_ERROR_MAP)) {
-    if (msg.toLowerCase().includes(key.toLowerCase())) return arMsg;
+  if (AUTH_ERROR_MAP[msg]) {
+    console.error('[Auth] Matched by message:', msg);
+    return AUTH_ERROR_MAP[msg];
   }
 
-  // Return code + message for debugging if no match
-  console.warn('[Auth] Unmapped error, returning original message');
-  return msg || 'حدث خطأ أثناء عملية التحقق (' + (code || 'unknown') + ')';
+  // Partial match fallback
+  for (const [key, ar] of Object.entries(AUTH_ERROR_MAP)) {
+    if (msg.toLowerCase().includes(key.toLowerCase())) {
+      console.error('[Auth] Partial match:', key);
+      return ar;
+    }
+  }
+
+  // If no match found, use original message but log warning
+  console.warn('[Auth] ====== UNMAPPED ERROR ======');
+  console.warn('[Auth] Code:', code);
+  console.warn('[Auth] Message:', msg);
+  console.warn('[Auth] This error is not translated - add to AUTH_ERROR_MAP');
+  console.warn('[Auth] ============================');
+  return msg || 'حدث خطأ أثناء عملية التحقق (code: ' + (code || 'unknown') + ')';
 }
 
 interface AuthContextType {
@@ -148,7 +176,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    // Verify Supabase configuration on mount
+    console.log('[Auth] ====== SUPABASE CONFIG CHECK ======');
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    console.log('[Auth] SUPABASE_URL:', supabaseUrl ? 'SET (' + supabaseUrl.substring(0, 30) + '...)' : 'NOT SET');
+    console.log('[Auth] SUPABASE_ANON_KEY:', supabaseKey ? 'SET (length: ' + supabaseKey.length + ')' : 'NOT SET');
+    console.log('[Auth] ====================================');
+
     supabase.auth.getSession().then(({ data: { session: s } }) => {
+      console.log('[Auth] Initial session check:', s ? 'Session exists for user: ' + s.user?.email : 'No session');
       setSession(s);
       if (s?.user) {
         fetchProfile(s.user.id).finally(() => setLoading(false));
@@ -158,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      console.log('[Auth] Auth state changed:', event, s?.user?.email || 'no user');
       setSession(s);
       if (s?.user) {
         (async () => {
@@ -244,7 +282,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Attempt login with email
-    console.log('[Auth] Calling Supabase signInWithPassword with email:', loginEmail);
+    console.log('[Auth] ====== CALLING SUPABASE ======');
+    console.log('[Auth] Method: signInWithPassword');
+    console.log('[Auth] Email being sent:', JSON.stringify(loginEmail));
+    console.log('[Auth] Password length being sent:', password.length);
+    console.log('[Auth] Password (first 3 chars):', password.substring(0, 3) + '...');
+    console.log('[Auth] ==============================');
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -252,16 +295,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password
       });
 
-      console.log('[Auth] Supabase response received');
-      console.log('[Auth] Has error:', !!error);
-      console.log('[Auth] Has data:', !!data);
-      console.log('[Auth] Has session:', !!data?.session);
-      console.log('[Auth] Has user:', !!data?.user);
+      console.log('[Auth] ====== SUPABASE RESPONSE ======');
+      console.log('[Auth] Response has error:', !!error);
+      console.log('[Auth] Response has data:', !!data);
+      console.log('[Auth] Response has session:', !!data?.session);
+      console.log('[Auth] Response has user:', !!data?.user);
+
+      if (data?.user) {
+        console.log('[Auth] User ID:', data.user.id);
+        console.log('[Auth] User email:', data.user.email);
+        console.log('[Auth] User email_confirmed_at:', data.user.email_confirmed_at);
+        console.log('[Auth] User phone:', data.user.phone);
+        console.log('[Auth] User phone_confirmed_at:', data.user.phone_confirmed_at);
+        console.log('[Auth] User created_at:', data.user.created_at);
+        console.log('[Auth] User last_sign_in_at:', data.user.last_sign_in_at);
+      }
+
+      if (data?.session) {
+        console.log('[Auth] Session access_token exists:', !!data.session.access_token);
+        console.log('[Auth] Session refresh_token exists:', !!data.session.refresh_token);
+        console.log('[Auth] Session expires_at:', data.session.expires_at);
+      }
+      console.log('[Auth] =================================');
 
       if (error) {
-        console.log('[Auth] signIn error code:', error.code);
-        console.log('[Auth] signIn error message:', error.message);
-        console.log('[Auth] signIn error status:', error.status);
+        console.log('[Auth] ====== SUPABASE ERROR DETAILS ======');
+        console.log('[Auth] Error code:', error.code);
+        console.log('[Auth] Error message:', error.message);
+        console.log('[Auth] Error status:', error.status);
+        console.log('[Auth] Full error:', JSON.stringify(error, null, 2));
+        console.log('[Auth] ====================================');
         return { error: translateAuthError(error) };
       }
 

@@ -442,21 +442,38 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
+    console.log('[LoginScreen] ====== LOGIN BUTTON PRESSED ======');
+    console.log('[LoginScreen] Email input value:', JSON.stringify(email));
+    console.log('[LoginScreen] Email trimmed:', JSON.stringify(email.trim()));
+    console.log('[LoginScreen] Password length:', password.length);
+    console.log('[LoginScreen] Has @ in email:', email.includes('@'));
+
     if (!email.trim() || !password) {
+      console.log('[LoginScreen] Validation failed - empty fields');
       setError('الرجاء إدخال البريد الإلكتروني وكلمة المرور');
       return;
     }
     setLoading(true);
     setError(null);
-    console.log('[LoginScreen] Attempting login for:', email.trim());
+    console.log('[LoginScreen] Calling signIn...');
     try {
       const { error: err } = await signIn(email.trim(), password);
-      console.log('[LoginScreen] Login result:', err ? 'error: ' + err : 'success');
-      if (err) setError(err);
+      console.log('[LoginScreen] ====== SIGNIN RESULT ======');
+      console.log('[LoginScreen] Error returned:', err ? 'YES: ' + err : 'NO - Success');
+      if (err) {
+        console.log('[LoginScreen] Setting error in UI');
+        setError(err);
+      } else {
+        console.log('[LoginScreen] Login successful, should redirect');
+      }
     } catch (e: any) {
-      console.error('[Login] Network error:', e);
+      console.error('[LoginScreen] ====== CATCH ERROR ======');
+      console.error('[LoginScreen] Exception:', e);
+      console.error('[LoginScreen] Message:', e?.message);
+      console.error('[LoginScreen] Stack:', e?.stack);
       setError('مشكلة اتصال بالسيرفر. تحقق من الإنترنت وأعد المحاولة');
     } finally {
+      console.log('[LoginScreen] Setting loading false');
       setLoading(false);
     }
   };
