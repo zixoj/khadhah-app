@@ -11,6 +11,7 @@ import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import {
   User, ChevronLeft, LogOut, Edit3, Star, Heart, Bell, Shield,
   List, Activity, CheckCircle, Truck, Megaphone, Phone, ShieldCheck, MessageSquare,
+  UserPlus, LogIn,
 } from 'lucide-react-native';
 import PhoneVerifyModal from '@/components/PhoneVerifyModal';
 
@@ -21,7 +22,7 @@ interface ExtendedProfile {
 }
 
 export default function ProfileScreen() {
-  const { profile: baseProfile, signOut, isAdmin } = useAuth();
+  const { profile: baseProfile, signOut, isAdmin, isGuest, exitGuestMode } = useAuth();
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const C = colors;
@@ -52,6 +53,102 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => { await signOut(); router.replace('/(auth)/login'); };
   const isAgent = profile?.role === 'delivery_agent';
+
+  // ── Guest Mode UI ──
+  if (isGuest) {
+    return (
+      <ScrollView style={[styles.container, { backgroundColor: C.background }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={[styles.headerBg, { backgroundColor: C.surface, borderBottomColor: isDark ? C.cardBorder : '#E8EDF2', borderBottomWidth: 1 }]}>
+          <View style={styles.headerTop}>
+            <Text style={[styles.headerTitle, { color: C.text }]}>حسابي</Text>
+          </View>
+          {/* Guest avatar */}
+          <View style={styles.avatarSection}>
+            <View style={{ alignItems: 'center' }}>
+              <View style={[styles.avatarPlaceholder, { backgroundColor: isDark ? 'rgba(0,200,83,0.10)' : '#F4F7FA', borderColor: 'rgba(0,200,83,0.40)' }]}>
+                <User size={38} color={isDark ? 'rgba(0,200,83,0.70)' : '#00C853'} />
+              </View>
+              {/* Guest badge */}
+              <View style={[styles.guestBadge, { backgroundColor: isDark ? 'rgba(0,200,83,0.12)' : '#ECFDF5', borderColor: isDark ? 'rgba(0,200,83,0.30)' : 'rgba(0,168,68,0.20)' }]}>
+                <Text style={[styles.guestBadgeText, { color: isDark ? '#00C853' : '#065f46' }]}>مستخدم زائر</Text>
+              </View>
+            </View>
+            <View style={styles.nameBlock}>
+              <Text style={[styles.name, { color: C.text }]}>زائر</Text>
+              <Text style={[styles.roleText, { color: C.textSecondary, marginTop: 2 }]}>تصفح بدون حساب</Text>
+              <Text style={[styles.roleText, { color: C.textMuted, marginTop: 4, lineHeight: 18 }]}>
+                أنشئ حساباً مجانياً للوصول إلى جميع المميزات
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Upgrade CTA */}
+        <View style={[styles.guestCta, { backgroundColor: isDark ? 'rgba(0,30,14,0.80)' : '#F0FDF4', borderColor: isDark ? 'rgba(0,200,83,0.28)' : 'rgba(0,168,68,0.22)' }]}>
+          <Text style={[styles.guestCtaTitle, { color: isDark ? '#fff' : '#111827' }]}>
+            احصل على تجربة كاملة
+          </Text>
+          <Text style={[styles.guestCtaSub, { color: isDark ? 'rgba(255,255,255,0.55)' : '#6B7280' }]}>
+            رسائل • إعلانات • مفضلة • تقييمات
+          </Text>
+          <TouchableOpacity
+            style={styles.upgradeBtn}
+            onPress={() => router.push('/(auth)/register')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.upgradeBtnShine} />
+            <UserPlus size={17} color="#000" strokeWidth={2.5} />
+            <Text style={styles.upgradeBtnText}>الترقية لحساب كامل</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.loginLinkBtn, { borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E5E7EB' }]}
+            onPress={() => router.push('/(auth)/login')}
+            activeOpacity={0.8}
+          >
+            <LogIn size={16} color={isDark ? 'rgba(255,255,255,0.70)' : '#374151'} />
+            <Text style={[styles.loginLinkText, { color: isDark ? 'rgba(255,255,255,0.75)' : '#374151' }]}>لدي حساب — تسجيل الدخول</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Locked features hint */}
+        <View style={[styles.sectionCard, { backgroundColor: C.card, borderColor: isDark ? 'rgba(0,200,83,0.10)' : '#E8EDF2' }]}>
+          <Text style={[styles.sectionTitle, { color: C.textSecondary }]}>مميزات مقفلة</Text>
+          {[
+            { label: 'إرسال رسائل', icon: '💬' },
+            { label: 'نشر إعلانات', icon: '📋' },
+            { label: 'حفظ المفضلة', icon: '❤️' },
+            { label: 'تعديل الملف الشخصي', icon: '✏️' },
+            { label: 'تقييم المستخدمين', icon: '⭐' },
+          ].map((item, i, arr) => (
+            <View key={item.label}>
+              <View style={[styles.menuItem, { opacity: 0.55 }]}>
+                <Text style={{ fontSize: 13, color: isDark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' }}>🔒</Text>
+                <View style={styles.menuRight}>
+                  <Text style={[styles.menuLabel, { color: C.textMuted }]}>{item.label}</Text>
+                </View>
+                <View style={[styles.menuIcon, { backgroundColor: isDark ? '#1A2020' : '#F0FDF4' }]}>
+                  <Text style={{ fontSize: 18 }}>{item.icon}</Text>
+                </View>
+              </View>
+              {i < arr.length - 1 && <View style={[styles.menuDivider, { backgroundColor: isDark ? C.border : '#F0F4F8' }]} />}
+            </View>
+          ))}
+        </View>
+
+        {/* Exit guest */}
+        <TouchableOpacity
+          style={[styles.signOutBtn, { backgroundColor: C.errorBg, borderColor: `${C.error}44` }]}
+          onPress={async () => { await exitGuestMode(); router.replace('/(auth)/login'); }}
+          activeOpacity={0.7}
+        >
+          <LogOut size={18} color={C.error} />
+          <Text style={[styles.signOutText, { color: C.error }]}>الخروج من وضع الزائر</Text>
+        </TouchableOpacity>
+
+        <Text style={[styles.version, { color: C.textMuted }]}>خذها v1.0.0</Text>
+      </ScrollView>
+    );
+  }
 
   const renderStars = (avg: number) =>
     Array.from({ length: 5 }).map((_, i) => (
@@ -286,4 +383,63 @@ const styles = StyleSheet.create({
   },
   signOutText: { fontSize: FontSizes.lg, fontWeight: '700' },
   version: { textAlign: 'center', fontSize: FontSizes.xs, marginTop: Spacing.lg },
+
+  // ── Guest styles ──
+  guestBadge: {
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 99,
+    borderWidth: 1,
+  },
+  guestBadgeText: { fontSize: 11, fontWeight: '700' },
+
+  guestCta: {
+    borderRadius: BorderRadius.xl,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    gap: 6,
+  },
+  guestCtaTitle: { fontSize: FontSizes.lg, fontWeight: '800', textAlign: 'center' },
+  guestCtaSub: { fontSize: FontSizes.sm, textAlign: 'center', marginBottom: 6 },
+
+  upgradeBtn: {
+    width: '100%',
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: '#00C853',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    overflow: 'hidden',
+    marginTop: 4,
+    shadowColor: '#00C853',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  upgradeBtnShine: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: '50%',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderTopLeftRadius: 18, borderTopRightRadius: 18,
+  },
+  upgradeBtnText: { fontSize: FontSizes.md, fontWeight: '800', color: '#000' },
+
+  loginLinkBtn: {
+    width: '100%',
+    height: 46,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  loginLinkText: { fontSize: FontSizes.md, fontWeight: '600' },
 });

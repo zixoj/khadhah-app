@@ -4,7 +4,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '@/lib/theme';
 
 export default function AuthLayout() {
-  const { session, loading } = useAuth();
+  const { session, loading, isGuest } = useAuth();
 
   if (loading) {
     return (
@@ -14,7 +14,7 @@ export default function AuthLayout() {
     );
   }
 
-  if (session) {
+  if (session || isGuest) {
     return <Redirect href="/(tabs)" />;
   }
 

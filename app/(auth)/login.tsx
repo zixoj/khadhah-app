@@ -413,7 +413,7 @@ function SaudiSkyline() {
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { signIn } = useAuth();
+  const { signIn, enterGuestMode } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -482,6 +482,9 @@ export default function LoginScreen() {
   const glowScale   = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.15] });
   const glowOpacity = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.60] });
 
+  const handleGuest = async () => {
+    await enterGuestMode();
+  };
   return (
     <View style={styles.root}>
       {PARTICLES.map((p, i) => <Particle key={i} {...p} />)}
@@ -628,6 +631,21 @@ export default function LoginScreen() {
               activeOpacity={0.82}
             >
               <Text style={styles.secondaryBtnText}>إنشاء حساب جديد</Text>
+            </TouchableOpacity>
+
+            {/* ── Guest Mode Button ── */}
+            <TouchableOpacity
+              style={styles.guestBtn}
+              onPress={handleGuest}
+              activeOpacity={0.78}
+            >
+              <View style={styles.guestBtnInner}>
+                <Text style={styles.guestBtnIcon}>👀</Text>
+                <View style={styles.guestBtnTextWrap}>
+                  <Text style={styles.guestBtnTextAr}>المتابعة كزائر</Text>
+                  <Text style={styles.guestBtnTextEn}>Continue as Guest</Text>
+                </View>
+              </View>
             </TouchableOpacity>
           </Animated.View>
         </ScrollView>
@@ -812,4 +830,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   secondaryBtnText: { fontSize: 16, fontWeight: '700', color: G.text, letterSpacing: 0.2 },
+
+  // ── Guest button ──
+  guestBtn: {
+    height: 56, borderRadius: 20,
+    backgroundColor: 'rgba(0,30,14,0.60)',
+    borderWidth: 1.5, borderColor: 'rgba(0,200,83,0.28)',
+    justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#00C853',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+  },
+  guestBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  guestBtnIcon: { fontSize: 18 },
+  guestBtnTextWrap: { alignItems: 'flex-end', gap: 1 },
+  guestBtnTextAr: { fontSize: 15, fontWeight: '700', color: 'rgba(0,200,83,0.90)', letterSpacing: 0.2 },
+  guestBtnTextEn: { fontSize: 10, fontWeight: '500', color: 'rgba(0,200,83,0.55)', letterSpacing: 0.3 },
 });

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, ArrowLeftRight, Gift, User, MoreHorizontal } from 'lucide-react-native';
 
 export default function TabLayout() {
-  const { session, loading } = useAuth();
+  const { session, loading, isGuest } = useAuth();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -18,7 +18,7 @@ export default function TabLayout() {
     );
   }
 
-  if (!session) {
+  if (!session && !isGuest) {
     return <Redirect href="/(auth)/login" />;
   }
 

@@ -43,6 +43,7 @@ import {
   Zap,
 } from 'lucide-react-native';
 import PhoneVerifyModal from '@/components/PhoneVerifyModal';
+import { useGuestGate } from '@/hooks/useGuestGate';
 
 interface Listing {
   id: string; user_id: string; title: string; description: string; category: string;
@@ -93,6 +94,7 @@ export default function PostDetailScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { colors, isDark } = useTheme();
+  const { guard, GuestGateModal } = useGuestGate();
   const insets = useSafeAreaInsets();
   const [listing, setListing] = useState<Listing | null>(null);
   const [owner, setOwner] = useState<OwnerProfile | null>(null);
@@ -163,7 +165,7 @@ export default function PostDetailScreen() {
   useEffect(() => { fetchListing(); }, [fetchListing]);
 
   const toggleFavorite = async () => {
-    if (!profile) return;
+    if (!profile) { guard(() => {}); return; }
     if (isFavorited && favoriteId) {
       await supabase.from('favorites').delete().eq('id', favoriteId);
       setIsFavorited(false); setFavoriteId(null);
@@ -245,7 +247,7 @@ export default function PostDetailScreen() {
 
   const handleDirectChat = async () => {
     if (!profile) {
-      router.push('/(auth)/login');
+      guard(() => {});
       return;
     }
     if (!listing) return;
@@ -300,6 +302,7 @@ export default function PostDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
+      <GuestGateModal />
       {/* Nav */}
       <View style={[styles.navBar, { backgroundColor: C.navBar, borderBottomColor: isDark ? C.border : '#E8EDF2', paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
@@ -308,7 +311,7 @@ export default function PostDetailScreen() {
         <Text style={[styles.navTitle, { color: C.text }]}>تفاصيل الإعلان</Text>
         <View style={styles.navActions}>
           {!isOwner && (
-            <TouchableOpacity onPress={() => setReportModalVisible(true)} style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
+            <TouchableOpacity onPress={() => guard(() => setReportModalVisible(true))} style={[styles.navIconBtn, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
               <Flag size={18} color={hasReported ? C.error : C.textSecondary} />
             </TouchableOpacity>
           )}

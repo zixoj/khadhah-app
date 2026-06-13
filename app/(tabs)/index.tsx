@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { Spacing, FontSizes } from '@/lib/theme';
 import { ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin, Heart, Search } from 'lucide-react-native';
 import VerseCard from '@/components/VerseCard';
+import { useGuestGate } from '@/hooks/useGuestGate';
 
 interface RecentListing {
   id: string;
@@ -46,8 +47,9 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; dot: string }> 
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, isGuest } = useAuth();
   const { colors: C, isDark } = useTheme();
+  const { guard, GuestGateModal } = useGuestGate();
   const [recent, setRecent] = useState<RecentListing[]>([]);
   const [searchInput, setSearchInput] = useState('');
 
@@ -63,7 +65,7 @@ export default function HomeScreen() {
 
   useFocusEffect(loadRecent);
 
-  const firstName = profile?.full_name ? profile.full_name.split(' ')[0] : 'صديقي';
+  const firstName = isGuest ? 'زائر' : (profile?.full_name ? profile.full_name.split(' ')[0] : 'صديقي');
 
   return (
     <ScrollView
@@ -71,6 +73,7 @@ export default function HomeScreen() {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingBottom: 110 }}
     >
+      <GuestGateModal />
       {/* ── Hero ── */}
       <View style={[styles.hero, { backgroundColor: C.background }]}>
         {isDark && (
@@ -174,7 +177,7 @@ export default function HomeScreen() {
               shadowColor: C.primary,
             },
           ]}
-          onPress={() => router.push('/add-post')}
+          onPress={() => guard(() => router.push('/add-post'))}
           activeOpacity={0.85}
         >
           <Plus size={22} color="#000" strokeWidth={3} />

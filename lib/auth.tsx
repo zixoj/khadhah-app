@@ -1,7 +1,11 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import type { Profile, UserRole } from '@/types/database';
 import type { Session, AuthError } from '@supabase/supabase-js';
+
+const GUEST_KEY = 'app_guest_mode';
 
 // Normalize Saudi phone numbers to international format
 // Accepts: 05XXXXXXXX, +9665XXXXXXXX, 9665XXXXXXXX, 5XXXXXXXX
@@ -124,10 +128,13 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   isAdmin: boolean;
+  isGuest: boolean;
   signUp: (email: string, password: string, fullName: string, role: UserRole, phone: string) => Promise<{ error: string | null }>;
   signIn: (identifier: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  enterGuestMode: () => Promise<void>;
+  exitGuestMode: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -135,16 +142,20 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   isAdmin: false,
+  isGuest: false,
   signUp: async () => ({ error: null }),
   signIn: async () => ({ error: null }),
   signOut: async () => {},
   refreshProfile: async () => {},
+  enterGuestMode: async () => {},
+  exitGuestMode: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     console.log('[Auth] Fetching profile for user:', userId);
@@ -184,15 +195,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('[Auth] SUPABASE_ANON_KEY:', supabaseKey ? 'SET (length: ' + supabaseKey.length + ')' : 'NOT SET');
     console.log('[Auth] ====================================');
 
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    const init = async () => {
+      // Check persisted guest mode
+      try {
+        const guestVal = Platform.OS === 'web'
+          ? localStorage.getItem(GUEST_KEY)
+          : await AsyncStorage.getItem(GUEST_KEY);
+        if (guestVal === 'true') {
+          console.log('[Auth] Restoring guest mode from storage');
+          setIsGuest(true);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('[Auth] Failed to read guest storage:', e);
+      }
+
+      // Normal auth check
+      const { data: { session: s } } = await supabase.auth.getSession();
       console.log('[Auth] Initial session check:', s ? 'Session exists for user: ' + s.user?.email : 'No session');
       setSession(s);
       if (s?.user) {
-        fetchProfile(s.user.id).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
+        await fetchProfile(s.user.id);
       }
-    });
+      setLoading(false);
+    };
+
+    init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       console.log('[Auth] Auth state changed:', event, s?.user?.email || 'no user');
@@ -202,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await fetchProfile(s.user.id);
           setLoading(false);
         })();
-      } else {
+      } else if (event !== 'INITIAL_SESSION') {
         setProfile(null);
         setLoading(false);
       }
@@ -386,7 +415,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const enterGuestMode = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.setItem(GUEST_KEY, 'true');
+      } else {
+        await AsyncStorage.setItem(GUEST_KEY, 'true');
+      }
+    } catch (e) {
+      console.warn('[Auth] Failed to persist guest mode:', e);
+    }
+    setIsGuest(true);
+  };
+
+  const exitGuestMode = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        localStorage.removeItem(GUEST_KEY);
+      } else {
+        await AsyncStorage.removeItem(GUEST_KEY);
+      }
+    } catch (e) {
+      console.warn('[Auth] Failed to clear guest mode:', e);
+    }
+    setIsGuest(false);
+  };
+
   const signOut = async () => {
+    await exitGuestMode();
     await supabase.auth.signOut();
     setProfile(null);
   };
@@ -394,7 +450,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = profile?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, isAdmin, signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ session, profile, loading, isAdmin, isGuest, signUp, signIn, signOut, refreshProfile, enterGuestMode, exitGuestMode }}>
       {children}
     </AuthContext.Provider>
   );
