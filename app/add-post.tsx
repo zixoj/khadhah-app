@@ -88,7 +88,6 @@ export default function AddPostScreen() {
   const [step, setStep] = useState<SubmitStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isUrgent, setIsUrgent] = useState(false);
-  const [dualMode, setDualMode] = useState(false);
 
   const successScale = useRef(new Animated.Value(0.7)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
@@ -325,7 +324,7 @@ export default function AddPostScreen() {
       p_delivery_method: deliveryMethod,
       p_image_url: primaryUrl,
       p_is_urgent: isUrgent,
-      p_dual_mode: dualMode,
+      p_dual_mode: false,
     });
 
     console.log('[handleSubmit] create_listing RPC result:', JSON.stringify(data), rpcError);
@@ -480,19 +479,6 @@ export default function AddPostScreen() {
 
         {/* ── Toggles ── */}
         <View style={[styles.toggleCard, { backgroundColor: cardBg, borderColor: inputBorder }]}>
-          <View style={styles.toggleRow}>
-            <Switch
-              value={dualMode}
-              onValueChange={setDualMode}
-              trackColor={{ false: isDark ? '#2A3530' : '#E0E8EF', true: `${C.primary}55` }}
-              thumbColor={dualMode ? C.primary : (isDark ? '#4A5568' : '#CBD5E0')}
-            />
-            <View style={styles.toggleText}>
-              <Text style={[styles.toggleLabel, { color: C.text }]}>مجاني + قابل للتبديل</Text>
-              <Text style={[styles.toggleSub, { color: C.textSecondary }]}>يظهر في قسمي خذه وبدّل</Text>
-            </View>
-          </View>
-          <View style={[styles.toggleDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F0F0F0' }]} />
           <View style={styles.toggleRow}>
             <Switch
               value={isUrgent}
@@ -742,7 +728,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
     gap: Spacing.md, padding: 14,
   },
-  toggleDivider: { height: 1, marginHorizontal: 14 },
   toggleText: { flex: 1, alignItems: 'flex-end', gap: 2 },
   toggleLabel: { fontSize: FontSizes.md, fontWeight: '700', textAlign: 'right' },
   toggleSub: { fontSize: FontSizes.xs, textAlign: 'right' },

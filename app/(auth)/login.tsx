@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import VerseCard from '@/components/VerseCard';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Rect, Circle, Line, Defs, RadialGradient, Stop, G as SvgG, LinearGradient } from 'react-native-svg';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 
@@ -85,328 +85,280 @@ function Particle({ x, y, size, opacity, dur }: typeof PARTICLES[0]) {
 }
 
 /*
-  Saudi Skyline — landmarks left→right:
-  1. Small Riyadh towers (far left fill)
-  2. Al Faisaliah Tower — conical needle top, tapered body
-  3. Generic Riyadh mid-rise cluster
-  4. Kingdom Centre Tower — iconic open arch bridge at top, twin legs
-  5. Makkah Clock Tower — broad base, clock face tier, tall spire
-  6. Palm trees (2×)
-  7. Right-side Riyadh infill towers
-  All drawn with View rectangles, triangles (border trick), and thin lines.
+  Saudi Skyline — SVG version.
+  Landmarks left → right (scaled to SW × 220 viewport):
+    1. Left skyline fill — small Riyadh mid-rises
+    2. Al Faisaliah Tower — tapered body, gold sphere, needle
+    3. Kingdom Centre Tower — twin legs, sky-bridge arch opening
+    4. Makkah Clock Tower — stepped base, hotel block, clock tier, crescent spire
+    5. Right skyline fill — modern Riyadh towers
+  All strokes: thin neon-green, dark fill, glow via SVG filter approximated
+  with layered semi-transparent duplicates.
 */
 function SaudiSkyline() {
-  const BASE = 14; // ground line y from bottom of container
+  const W = SW;
+  const H = 220;
+  const GND = H - 16; // y of ground line
 
-  // Helper: a simple rectangular building
-  const Bld = ({
-    left, w, h, borderColor = 'rgba(0,200,83,0.35)',
-    children,
-  }: {
-    left: number; w: number; h: number;
-    borderColor?: string; children?: React.ReactNode;
-  }) => (
-    <View
-      style={{
-        position: 'absolute',
-        left,
-        bottom: BASE,
-        width: w,
-        height: h,
-        backgroundColor: '#050B08',
-        borderTopWidth: 1.2,
-        borderLeftWidth: 1,
-        borderRightWidth: 1,
-        borderColor,
-        overflow: 'hidden',
-      }}
-    >
-      {children}
-    </View>
-  );
+  // Colour tokens
+  const C1 = 'rgba(0,200,83,0.55)';   // main outline
+  const C2 = 'rgba(0,200,83,0.85)';   // accent / glow strokes
+  const C3 = 'rgba(0,200,83,0.22)';   // faint fill tint
+  const DARK = '#050B08';
 
-  // Helper: window row
-  const WinRow = ({ bottom, cols, w: bw }: { bottom: number; cols: number; w: number }) => (
-    <View style={{ position: 'absolute', bottom, left: 3, right: 3, flexDirection: 'row', justifyContent: 'space-around' }}>
-      {Array.from({ length: cols }).map((_, i) => (
-        <View key={i} style={{ width: Math.max(2, (bw - 6) / cols - 2), height: 4, backgroundColor: G.primary, opacity: 0.35, borderRadius: 1 }} />
-      ))}
-    </View>
-  );
-
-  // ── 1. Left infill small towers ──────────────────────────────
-  const leftTowers = [
-    { left: 0,  w: 20, h: 45 },
-    { left: 24, w: 14, h: 32 },
-    { left: 42, w: 18, h: 55 },
-    { left: 64, w: 12, h: 28 },
-  ];
-
-  // ── 2. Al Faisaliah Tower (tapered body + needle) ─────────────
-  // Iconic: wide rectangular base that narrows near the top with a gold ball + needle
-  // We approximate with a trapezoid using nested views
-  const FAIS_L = 90;
-  const FAIS_W = 30;
-  const FAIS_H = 110;
-
-  // ── 3. Mid cluster ────────────────────────────────────────────
-  const midTowers = [
-    { left: 128, w: 16, h: 48 },
-    { left: 148, w: 22, h: 65 },
-    { left: 174, w: 14, h: 38 },
-  ];
-
-  // ── 4. Kingdom Centre Tower ───────────────────────────────────
-  // Two tall legs with a sky bridge arch between them at the top third
-  const KCL = Math.round(SW / 2) - 28;
-  const KC_W_TOTAL = 56;
-  const KC_LEG_W = 14;
-  const KC_H = 145;
-  const KC_BRIDGE_Y = 95; // from bottom of tower
-  const KC_BRIDGE_H = 14;
-
-  // ── 5. Makkah Clock Tower ────────────────────────────────────
-  // Broad stepped base → hotel tower body → clock tier → spire
-  const MCK_L = Math.round(SW / 2) + 48;
-  const MCK_BASE_W = 52;
-  const MCK_MID_W = 38;
-  const MCK_TOP_W = 22;
-  const MCK_BASE_H = 30;
-  const MCK_MID_H = 80;
-  const MCK_TOP_H = 30;
-  const MCK_SPIRE_H = 28;
-
-  // ── 6. Palm trees ─────────────────────────────────────────────
-  const PALM1_L = MCK_L + MCK_BASE_W + 10;
-  const PALM2_L = PALM1_L + 22;
-
-  // ── 7. Right infill ───────────────────────────────────────────
-  const rightTowers = [
-    { left: PALM2_L + 18, w: 18, h: 52 },
-    { left: PALM2_L + 40, w: 26, h: 70 },
-    { left: PALM2_L + 70, w: 14, h: 38 },
-    { left: PALM2_L + 88, w: 20, h: 55 },
-    { left: SW - 24, w: 24, h: 44 },
-  ];
+  // Scale factor so drawing fits any screen width
+  // Reference design width = 390 (iPhone 14 width)
+  const s = W / 390;
+  const x = (v: number) => v * s;
+  const y = (v: number) => GND - v * s; // y from ground up
 
   return (
     <View pointerEvents="none" style={styles.skylineContainer}>
+      <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <Defs>
+          {/* Glow gradient behind skyline */}
+          <LinearGradient id="skyGlow" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#00C853" stopOpacity="0.00" />
+            <Stop offset="0.55" stopColor="#00C853" stopOpacity="0.04" />
+            <Stop offset="1" stopColor="#00C853" stopOpacity="0.13" />
+          </LinearGradient>
+          {/* Ground line gradient */}
+          <LinearGradient id="groundGrad" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#00C853" stopOpacity="0.0" />
+            <Stop offset="0.2" stopColor="#00C853" stopOpacity="0.7" />
+            <Stop offset="0.5" stopColor="#00C853" stopOpacity="1.0" />
+            <Stop offset="0.8" stopColor="#00C853" stopOpacity="0.7" />
+            <Stop offset="1" stopColor="#00C853" stopOpacity="0.0" />
+          </LinearGradient>
+        </Defs>
 
-      {/* Ground glow line */}
-      <View style={styles.groundLine} />
-      <View style={styles.groundGlow} />
+        {/* Sky glow backdrop */}
+        <Rect x={0} y={0} width={W} height={H} fill="url(#skyGlow)" />
 
-      {/* ── Left infill ── */}
-      {leftTowers.map((t, i) => (
-        <Bld key={`lt${i}`} left={t.left} w={t.w} h={t.h}>
-          <WinRow bottom={6} cols={2} w={t.w} />
-          <WinRow bottom={16} cols={2} w={t.w} />
-          <WinRow bottom={26} cols={2} w={t.w} />
-        </Bld>
-      ))}
+        {/* ══════════════════════════════════════════════════
+            1. LEFT FILL — small Riyadh towers
+        ══════════════════════════════════════════════════ */}
 
-      {/* ── Al Faisaliah Tower ── */}
-      {/* Body — tapered using a wider bottom layer + narrower top */}
-      <Bld left={FAIS_L + 4} w={FAIS_W - 8} h={FAIS_H}>
-        {[10, 24, 38, 52, 66, 80].map((b, i) => (
-          <WinRow key={i} bottom={b} cols={2} w={FAIS_W - 8} />
+        {/* Tower L1 — 20w × 48h at x=4 */}
+        <Rect x={x(4)} y={y(48)} width={x(20)} height={x(48)} fill={DARK} stroke={C1} strokeWidth="1" />
+        {/* windows */}
+        {[8,18,28,38].map((yy, i) => (
+          <Rect key={`l1w${i}`} x={x(7)} y={y(yy+4)} width={x(6)} height={x(3)} fill={C1} opacity={0.30} rx="1" />
         ))}
-      </Bld>
-      {/* Wide base skirt */}
-      <Bld left={FAIS_L} w={FAIS_W} h={24} />
-      {/* Narrower upper shaft */}
-      <Bld left={FAIS_L + 8} w={FAIS_W - 16} h={FAIS_H - 60} />
-      {/* Gold ball tier (circle approximation) */}
-      <View style={{
-        position: 'absolute',
-        left: FAIS_L + FAIS_W / 2 - 6,
-        bottom: BASE + FAIS_H,
-        width: 12, height: 12, borderRadius: 6,
-        backgroundColor: '#050B08',
-        borderWidth: 1.5, borderColor: G.primary,
-        shadowColor: G.primary, shadowOpacity: 0.8, shadowRadius: 6,
-      }} />
-      {/* Needle */}
-      <View style={{
-        position: 'absolute',
-        left: FAIS_L + FAIS_W / 2 - 0.75,
-        bottom: BASE + FAIS_H + 12,
-        width: 1.5, height: 18,
-        backgroundColor: G.primary, opacity: 0.8,
-      }} />
-
-      {/* ── Mid cluster ── */}
-      {midTowers.map((t, i) => (
-        <Bld key={`mt${i}`} left={t.left} w={t.w} h={t.h}>
-          <WinRow bottom={6} cols={2} w={t.w} />
-          <WinRow bottom={18} cols={2} w={t.w} />
-          <WinRow bottom={30} cols={2} w={t.w} />
-        </Bld>
-      ))}
-
-      {/* ── Kingdom Centre Tower ── */}
-      {/* Left leg */}
-      <View style={{
-        position: 'absolute', left: KCL, bottom: BASE,
-        width: KC_LEG_W, height: KC_H,
-        backgroundColor: '#050B08',
-        borderTopWidth: 1.2, borderLeftWidth: 1, borderRightWidth: 1,
-        borderColor: 'rgba(0,200,83,0.55)',
-      }}>
-        {[8, 22, 36, 50, 64, 78].map((b, i) => (
-          <View key={i} style={{ position: 'absolute', bottom: b, left: 2, right: 2, height: 3, backgroundColor: G.primary, opacity: 0.25, borderRadius: 1 }} />
+        {[8,18,28,38].map((yy, i) => (
+          <Rect key={`l1w2${i}`} x={x(14)} y={y(yy+4)} width={x(6)} height={x(3)} fill={C1} opacity={0.30} rx="1" />
         ))}
-      </View>
-      {/* Right leg */}
-      <View style={{
-        position: 'absolute', left: KCL + KC_W_TOTAL - KC_LEG_W, bottom: BASE,
-        width: KC_LEG_W, height: KC_H,
-        backgroundColor: '#050B08',
-        borderTopWidth: 1.2, borderLeftWidth: 1, borderRightWidth: 1,
-        borderColor: 'rgba(0,200,83,0.55)',
-      }}>
-        {[8, 22, 36, 50, 64, 78].map((b, i) => (
-          <View key={i} style={{ position: 'absolute', bottom: b, left: 2, right: 2, height: 3, backgroundColor: G.primary, opacity: 0.25, borderRadius: 1 }} />
+
+        {/* Tower L2 — 16w × 32h at x=28 */}
+        <Rect x={x(28)} y={y(32)} width={x(16)} height={x(32)} fill={DARK} stroke={C1} strokeWidth="1" />
+        {[8,18].map((yy, i) => (
+          <Rect key={`l2w${i}`} x={x(31)} y={y(yy+4)} width={x(4)} height={x(3)} fill={C1} opacity={0.28} rx="1" />
         ))}
-      </View>
-      {/* Sky bridge */}
-      <View style={{
-        position: 'absolute',
-        left: KCL,
-        bottom: BASE + KC_BRIDGE_Y,
-        width: KC_W_TOTAL,
-        height: KC_BRIDGE_H,
-        backgroundColor: '#050B08',
-        borderWidth: 1.2,
-        borderColor: 'rgba(0,200,83,0.65)',
-        shadowColor: G.primary, shadowOpacity: 0.4, shadowRadius: 6,
-      }} />
-      {/* Arch cutout illusion — inner dark rectangle */}
-      <View style={{
-        position: 'absolute',
-        left: KCL + KC_LEG_W,
-        bottom: BASE + KC_BRIDGE_Y + KC_BRIDGE_H,
-        width: KC_W_TOTAL - KC_LEG_W * 2,
-        height: KC_H - KC_BRIDGE_Y - KC_BRIDGE_H + 2,
-        backgroundColor: '#050B08',
-      }} />
-      {/* Kingdom Centre glow label line */}
-      <View style={{
-        position: 'absolute',
-        left: KCL + KC_W_TOTAL / 2 - 1,
-        bottom: BASE + KC_H,
-        width: 2, height: 10,
-        backgroundColor: G.primary, opacity: 0.6,
-      }} />
-
-      {/* ── Makkah Clock Tower ── */}
-      {/* Base plinth */}
-      <View style={{
-        position: 'absolute', left: MCK_L, bottom: BASE,
-        width: MCK_BASE_W, height: MCK_BASE_H,
-        backgroundColor: '#050B08',
-        borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
-        borderColor: 'rgba(0,200,83,0.35)',
-      }} />
-      {/* Hotel tower body */}
-      <View style={{
-        position: 'absolute',
-        left: MCK_L + (MCK_BASE_W - MCK_MID_W) / 2,
-        bottom: BASE + MCK_BASE_H,
-        width: MCK_MID_W, height: MCK_MID_H,
-        backgroundColor: '#050B08',
-        borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
-        borderColor: 'rgba(0,200,83,0.40)',
-        overflow: 'hidden',
-      }}>
-        {[8, 20, 32, 44, 56, 68].map((b, i) => (
-          <WinRow key={i} bottom={b} cols={3} w={MCK_MID_W} />
+        {[8,18].map((yy, i) => (
+          <Rect key={`l2w2${i}`} x={x(37)} y={y(yy+4)} width={x(4)} height={x(3)} fill={C1} opacity={0.28} rx="1" />
         ))}
-      </View>
-      {/* Clock tier */}
-      <View style={{
-        position: 'absolute',
-        left: MCK_L + (MCK_BASE_W - MCK_TOP_W) / 2,
-        bottom: BASE + MCK_BASE_H + MCK_MID_H,
-        width: MCK_TOP_W, height: MCK_TOP_H,
-        backgroundColor: '#050B08',
-        borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1,
-        borderColor: 'rgba(0,200,83,0.55)',
-      }}>
-        {/* Clock face circle */}
-        <View style={{
-          position: 'absolute',
-          top: 4, alignSelf: 'center',
-          width: 14, height: 14, borderRadius: 7,
-          backgroundColor: '#050B08',
-          borderWidth: 1.5, borderColor: G.primary,
-          shadowColor: G.primary, shadowOpacity: 0.7, shadowRadius: 5,
-        }} />
-      </View>
-      {/* Spire */}
-      <View style={{
-        position: 'absolute',
-        left: MCK_L + MCK_BASE_W / 2 - 1,
-        bottom: BASE + MCK_BASE_H + MCK_MID_H + MCK_TOP_H,
-        width: 2, height: MCK_SPIRE_H,
-        backgroundColor: G.primary, opacity: 0.75,
-        shadowColor: G.primary, shadowOpacity: 0.9, shadowRadius: 6,
-      }} />
-      {/* Crescent on spire tip */}
-      <View style={{
-        position: 'absolute',
-        left: MCK_L + MCK_BASE_W / 2 - 5,
-        bottom: BASE + MCK_BASE_H + MCK_MID_H + MCK_TOP_H + MCK_SPIRE_H,
-        width: 10, height: 10,
-        borderTopLeftRadius: 5, borderTopRightRadius: 5,
-        borderWidth: 1.5, borderBottomWidth: 0,
-        borderColor: G.primary,
-        opacity: 0.85,
-      }} />
 
-      {/* ── Palm trees ── */}
-      {[PALM1_L, PALM2_L].map((pl, pi) => (
-        <View key={`palm${pi}`}>
-          {/* Trunk */}
-          <View style={{
-            position: 'absolute', left: pl + 3, bottom: BASE,
-            width: 2.5, height: 28,
-            backgroundColor: G.primary, opacity: 0.45,
-            borderRadius: 1,
-          }} />
-          {/* Fronds — 5 lines fanning out */}
-          {[
-            { angle: -40, len: 14 },
-            { angle: -20, len: 16 },
-            { angle:   0, len: 17 },
-            { angle:  20, len: 16 },
-            { angle:  40, len: 14 },
-          ].map((f, fi) => (
-            <View key={fi} style={{
-              position: 'absolute',
-              left: pl + 4,
-              bottom: BASE + 26,
-              width: f.len,
-              height: 1.5,
-              backgroundColor: G.primary,
-              opacity: 0.40,
-              borderRadius: 1,
-              transformOrigin: 'left center',
-              transform: [{ rotate: `${f.angle}deg` }],
-            }} />
-          ))}
-        </View>
-      ))}
+        {/* Tower L3 — 22w × 60h at x=48 */}
+        <Rect x={x(48)} y={y(60)} width={x(22)} height={x(60)} fill={DARK} stroke={C1} strokeWidth="1" />
+        {[8,18,28,38,48].map((yy, i) => (
+          <Rect key={`l3w${i}`} x={x(51)} y={y(yy+4)} width={x(6)} height={x(3)} fill={C1} opacity={0.28} rx="1" />
+        ))}
+        {[8,18,28,38,48].map((yy, i) => (
+          <Rect key={`l3w2${i}`} x={x(59)} y={y(yy+4)} width={x(6)} height={x(3)} fill={C1} opacity={0.28} rx="1" />
+        ))}
 
-      {/* ── Right infill ── */}
-      {rightTowers.filter(t => t.left + t.w <= SW).map((t, i) => (
-        <Bld key={`rt${i}`} left={t.left} w={t.w} h={t.h}>
-          <WinRow bottom={6} cols={2} w={t.w} />
-          <WinRow bottom={18} cols={2} w={t.w} />
-          <WinRow bottom={30} cols={2} w={t.w} />
-        </Bld>
-      ))}
+        {/* Antenna on L3 */}
+        <Line x1={x(59)} y1={y(60)} x2={x(59)} y2={y(68)} stroke={C2} strokeWidth="1.2" />
 
+        {/* Tower L4 narrow — 12w × 40h at x=74 */}
+        <Rect x={x(74)} y={y(40)} width={x(12)} height={x(40)} fill={DARK} stroke={C1} strokeWidth="1" />
+
+        {/* ══════════════════════════════════════════════════
+            2. AL FAISALIAH TOWER — x≈100
+            Tapered rectangular body: wide base narrows toward top,
+            gold sphere, thin needle
+        ══════════════════════════════════════════════════ */}
+
+        {/* Base skirt (full width) */}
+        <Rect x={x(95)} y={y(20)} width={x(36)} height={x(20)} fill={DARK} stroke={C1} strokeWidth="1.2" />
+        {/* Wide lower shaft */}
+        <Rect x={x(98)} y={y(80)} width={x(30)} height={x(60)} fill={DARK} stroke={C1} strokeWidth="1.2" />
+        {/* Taper — upper two thirds narrower */}
+        <Rect x={x(102)} y={y(130)} width={x(22)} height={x(50)} fill={DARK} stroke={C1} strokeWidth="1.2" />
+        {/* Top shaft very narrow */}
+        <Rect x={x(107)} y={y(145)} width={x(12)} height={x(15)} fill={DARK} stroke={C2} strokeWidth="1.2" />
+        {/* Window rows on main body */}
+        {[10,22,34,46,58,70].map((yy, i) => (
+          <Rect key={`fw${i}`} x={x(100)} y={y(yy+8)} width={x(26)} height={x(4)} fill={C1} opacity={0.22} rx="1" />
+        ))}
+        {/* Gold sphere (glow circle) */}
+        <Circle cx={x(113)} cy={y(147)} r={x(5)} fill={DARK} stroke={C2} strokeWidth="1.8" />
+        {/* Glow duplicate behind sphere */}
+        <Circle cx={x(113)} cy={y(147)} r={x(8)} fill="none" stroke={C2} strokeWidth="0.5" opacity={0.3} />
+        {/* Needle */}
+        <Line x1={x(113)} y1={y(152)} x2={x(113)} y2={y(168)} stroke={C2} strokeWidth="1.5" />
+        {/* Needle tip glow */}
+        <Circle cx={x(113)} cy={y(168)} r={x(1.5)} fill={C2} opacity={0.9} />
+
+        {/* ══════════════════════════════════════════════════
+            3. MID CLUSTER — between Faisaliah and Kingdom
+        ══════════════════════════════════════════════════ */}
+
+        <Rect x={x(140)} y={y(52)} width={x(18)} height={x(52)} fill={DARK} stroke={C1} strokeWidth="1" />
+        {[10,22,34,44].map((yy, i) => (
+          <Rect key={`mc${i}`} x={x(143)} y={y(yy+8)} width={x(5)} height={x(3)} fill={C1} opacity={0.25} rx="1" />
+        ))}
+        {[10,22,34,44].map((yy, i) => (
+          <Rect key={`mc2${i}`} x={x(151)} y={y(yy+8)} width={x(5)} height={x(3)} fill={C1} opacity={0.25} rx="1" />
+        ))}
+        <Rect x={x(162)} y={y(72)} width={x(24)} height={x(72)} fill={DARK} stroke={C1} strokeWidth="1.1" />
+        {[10,22,34,46,58].map((yy, i) => (
+          <Rect key={`mc3${i}`} x={x(165)} y={y(yy+8)} width={x(7)} height={x(4)} fill={C1} opacity={0.22} rx="1" />
+        ))}
+        {[10,22,34,46,58].map((yy, i) => (
+          <Rect key={`mc4${i}`} x={x(175)} y={y(yy+8)} width={x(7)} height={x(4)} fill={C1} opacity={0.22} rx="1" />
+        ))}
+
+        {/* ══════════════════════════════════════════════════
+            4. KINGDOM CENTRE TOWER — centred ~x=195
+            Iconic: twin legs separated by open sky arch at top
+        ══════════════════════════════════════════════════ */}
+
+        {/* Left leg */}
+        <Rect x={x(192)} y={y(150)} width={x(16)} height={x(150)} fill={DARK} stroke={C2} strokeWidth="1.4" />
+        {/* Right leg */}
+        <Rect x={x(228)} y={y(150)} width={x(16)} height={x(150)} fill={DARK} stroke={C2} strokeWidth="1.4" />
+
+        {/* Sky bridge — horizontal connector at top quarter of legs */}
+        <Rect x={x(192)} y={y(155)} width={x(52)} height={x(16)} fill={DARK} stroke={C2} strokeWidth="1.4" />
+
+        {/* Open arch gap (dark fill over the open space) */}
+        <Rect x={x(208)} y={y(149)} width={x(20)} height={x(6)} fill={DARK} />
+
+        {/* Sky bridge glow line (top edge) */}
+        <Line x1={x(193)} y1={y(171)} x2={x(243)} y2={y(171)} stroke={C2} strokeWidth="0.7" opacity={0.5} />
+
+        {/* Window rows on left leg */}
+        {[10,22,34,46,58,72,86,100,114,128].map((yy, i) => (
+          <Rect key={`kl${i}`} x={x(194)} y={y(yy+8)} width={x(12)} height={x(3)} fill={C1} opacity={0.20} rx="1" />
+        ))}
+        {/* Window rows on right leg */}
+        {[10,22,34,46,58,72,86,100,114,128].map((yy, i) => (
+          <Rect key={`kr${i}`} x={x(230)} y={y(yy+8)} width={x(12)} height={x(3)} fill={C1} opacity={0.20} rx="1" />
+        ))}
+
+        {/* Top antenna nub */}
+        <Line x1={x(208)} y1={y(150)} x2={x(208)} y2={y(158)} stroke={C2} strokeWidth="1.2" opacity={0.7} />
+        <Line x1={x(228)} y1={y(150)} x2={x(228)} y2={y(158)} stroke={C2} strokeWidth="1.2" opacity={0.7} />
+
+        {/* Kingdom Centre glow aura */}
+        <Rect x={x(188)} y={y(160)} width={x(60)} height={x(160)} fill="none" stroke={C2} strokeWidth="0.4" opacity={0.18} rx="2" />
+
+        {/* ══════════════════════════════════════════════════
+            5. MAKKAH CLOCK TOWER — x≈265
+            Broad stepped base → hotel block → clock tier → spire + crescent
+        ══════════════════════════════════════════════════ */}
+
+        {/* Hotel wing towers (left + right flanks) */}
+        <Rect x={x(258)} y={y(70)} width={x(14)} height={x(70)} fill={DARK} stroke={C1} strokeWidth="1" />
+        <Rect x={x(310)} y={y(70)} width={x(14)} height={x(70)} fill={DARK} stroke={C1} strokeWidth="1" />
+
+        {/* Base plinth (widest) */}
+        <Rect x={x(260)} y={y(22)} width={x(62)} height={x(22)} fill={DARK} stroke={C1} strokeWidth="1.2" />
+
+        {/* Hotel tower body */}
+        <Rect x={x(268)} y={y(96)} width={x(46)} height={x(74)} fill={DARK} stroke={C1} strokeWidth="1.2" />
+        {/* Hotel windows */}
+        {[8,20,32,44,56,64].map((yy, i) => (
+          <Rect key={`mw${i}`} x={x(271)} y={y(yy+10)} width={x(8)} height={x(4)} fill={C1} opacity={0.22} rx="1" />
+        ))}
+        {[8,20,32,44,56,64].map((yy, i) => (
+          <Rect key={`mw2${i}`} x={x(283)} y={y(yy+10)} width={x(8)} height={x(4)} fill={C1} opacity={0.22} rx="1" />
+        ))}
+        {[8,20,32,44,56,64].map((yy, i) => (
+          <Rect key={`mw3${i}`} x={x(295)} y={y(yy+10)} width={x(8)} height={x(4)} fill={C1} opacity={0.22} rx="1" />
+        ))}
+
+        {/* Clock tier (narrower) */}
+        <Rect x={x(275)} y={y(126)} width={x(32)} height={x(30)} fill={DARK} stroke={C2} strokeWidth="1.4" />
+        {/* Clock faces — 2 visible sides */}
+        <Circle cx={x(291)} cy={y(111+10)} r={x(9)} fill={DARK} stroke={C2} strokeWidth="1.4" />
+        {/* Clock glow ring */}
+        <Circle cx={x(291)} cy={y(111+10)} r={x(11)} fill="none" stroke={C2} strokeWidth="0.5" opacity={0.35} />
+        {/* Clock hands */}
+        <Line x1={x(291)} y1={y(121)} x2={x(291)} y2={y(126+4)} stroke={C2} strokeWidth="1" opacity={0.7} />
+        <Line x1={x(291)} y1={y(121)} x2={x(297)} y2={y(119)} stroke={C2} strokeWidth="1" opacity={0.7} />
+
+        {/* Spire */}
+        <Line x1={x(291)} y1={y(126)} x2={x(291)} y2={y(162)} stroke={C2} strokeWidth="2.2" />
+        {/* Spire glow line (wider, faint) */}
+        <Line x1={x(291)} y1={y(126)} x2={x(291)} y2={y(162)} stroke={C2} strokeWidth="6" opacity={0.08} />
+
+        {/* Crescent at spire tip */}
+        <Path
+          d={`M ${x(285)} ${y(164)} A ${x(6)} ${x(6)} 0 0 1 ${x(297)} ${y(164)}`}
+          fill="none"
+          stroke={C2}
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        {/* Star dot */}
+        <Circle cx={x(291)} cy={y(167)} r={x(1.2)} fill={C2} opacity={0.9} />
+
+        {/* Spire tip glow dot */}
+        <Circle cx={x(291)} cy={y(163)} r={x(2.5)} fill={C2} opacity={0.5} />
+
+        {/* ══════════════════════════════════════════════════
+            6. PALM TREES — between Clock Tower and right fill
+        ══════════════════════════════════════════════════ */}
+
+        {[x(330), x(350)].map((px, pi) => (
+          <SvgG key={`palm${pi}`}>
+            {/* Trunk */}
+            <Line x1={px} y1={GND} x2={px} y2={y(28)} stroke={C1} strokeWidth="2" opacity={0.5} />
+            {/* Fronds */}
+            {[
+              [-35, 16], [-18, 18], [0, 19], [18, 18], [35, 16],
+            ].map(([angle, len], fi) => {
+              const rad = (angle * Math.PI) / 180;
+              const ex = px + Math.sin(rad) * x(len);
+              const ey = y(28) - Math.cos(rad) * x(len);
+              return (
+                <Line key={fi} x1={px} y1={y(28)} x2={ex} y2={ey}
+                  stroke={C1} strokeWidth="1.2" strokeLinecap="round" opacity={0.45} />
+              );
+            })}
+          </SvgG>
+        ))}
+
+        {/* ══════════════════════════════════════════════════
+            7. RIGHT FILL — modern Riyadh towers
+        ══════════════════════════════════════════════════ */}
+
+        <Rect x={x(364)} y={y(55)} width={x(20)} height={x(55)} fill={DARK} stroke={C1} strokeWidth="1" />
+        {[10,22,34,44].map((yy, i) => (
+          <Rect key={`r1${i}`} x={x(367)} y={y(yy+6)} width={x(6)} height={x(3)} fill={C1} opacity={0.25} rx="1" />
+        ))}
+
+        <Rect x={x(388)} y={y(75)} width={x(26)} height={x(75)} fill={DARK} stroke={C1} strokeWidth="1" />
+        {[10,22,34,46,58,68].map((yy, i) => (
+          <Rect key={`r2${i}`} x={x(391)} y={y(yy+6)} width={x(7)} height={x(4)} fill={C1} opacity={0.22} rx="1" />
+        ))}
+
+        {/* Antenna */}
+        <Line x1={x(401)} y1={y(75)} x2={x(401)} y2={y(84)} stroke={C2} strokeWidth="1.2" />
+
+        {/* ══════════════════════════════════════════════════
+            GROUND LINE + GLOW
+        ══════════════════════════════════════════════════ */}
+
+        {/* Ground glow band */}
+        <Rect x={0} y={GND - 4} width={W} height={10} fill="#00C853" opacity={0.07} />
+        <Rect x={0} y={GND - 1} width={W} height={4} fill="#00C853" opacity={0.10} />
+        {/* Ground line */}
+        <Line x1={0} y1={GND} x2={W} y2={GND} stroke="url(#groundGrad)" strokeWidth="1.2" />
+
+      </Svg>
     </View>
   );
 }
@@ -705,25 +657,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 200,
-    overflow: 'hidden',
-  },
-  groundLine: {
-    position: 'absolute',
-    bottom: 14,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: G.primary,
-    opacity: 0.55,
-  },
-  groundGlow: {
-    position: 'absolute',
-    bottom: 8,
-    left: 0,
-    right: 0,
-    height: 12,
-    backgroundColor: 'rgba(0,200,83,0.12)',
+    height: 220,
   },
 
   // ── Logo ──

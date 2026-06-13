@@ -143,8 +143,6 @@ export default function SearchScreen() {
 
   // ── Render item ─────────────────────────────────────────────────────────────
   const renderItem = ({ item }: { item: SearchResult }) => {
-    const isExchange = item.type === 'exchange' || item.dual_mode;
-    const isFree = item.type === 'free' || item.dual_mode;
     const typeColor = item.type === 'exchange' ? C.exchange : C.primary;
 
     return (
@@ -183,7 +181,7 @@ export default function SearchScreen() {
                 ? <Gift size={9} color={typeColor} />
                 : <ArrowLeftRight size={9} color={typeColor} />}
               <Text style={[styles.typePillText, { color: typeColor }]}>
-                {item.dual_mode ? 'خذه + بدّل' : item.type === 'free' ? 'خذه' : 'بدّل'}
+                {item.type === 'free' ? 'خذه' : 'بدّل'}
               </Text>
             </View>
             {item.category && (

@@ -91,7 +91,7 @@ export default function ExchangeScreen() {
     let query = supabase
       .from('listings')
       .select('*')
-      .or('type.eq.exchange,dual_mode.eq.true')
+      .eq('type', 'exchange')
       .neq('status', 'taken')
       .order('is_urgent', { ascending: false })
       .order('created_at', { ascending: false });
