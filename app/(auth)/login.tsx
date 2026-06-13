@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import VerseCard from '@/components/VerseCard';
+import Svg, { Path } from 'react-native-svg';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 
@@ -520,14 +521,29 @@ export default function LoginScreen() {
             <View style={styles.logoGlowRing} />
             <View style={styles.logoGlowRing2} />
             <View style={styles.logoCard}>
-              <View style={styles.logoIconOuter}>
-                <View style={styles.logoIconInner}>
-                  <View style={styles.logoSymbol}>
-                    <View style={styles.logoArrowLeft} />
-                    <View style={styles.logoArrowRight} />
-                  </View>
-                </View>
-              </View>
+              {/* Exchange arrows SVG logo */}
+              <Svg width={52} height={48} viewBox="0 0 52 48">
+                {/* Top arrow — green, pointing right */}
+                {/* Curved path: starts left, arcs up, ends at arrowhead on right */}
+                <Path
+                  d="M6 28 C6 14, 20 10, 34 14 L30 8 L46 18 L30 26 L34 20 C22 17, 12 20, 12 30"
+                  fill="none"
+                  stroke="#00C853"
+                  strokeWidth="3.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {/* Bottom arrow — white, pointing left */}
+                {/* Curved path: starts right, arcs down, ends at arrowhead on left */}
+                <Path
+                  d="M46 20 C46 34, 32 38, 18 34 L22 40 L6 30 L22 22 L18 28 C30 31, 40 28, 40 18"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.90)"
+                  strokeWidth="3.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
             </View>
             <Text style={styles.appName}>خذها</Text>
             <View style={styles.appNameUnderline} />
@@ -729,30 +745,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     shadowColor: G.primary, shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.7, shadowRadius: 20, elevation: 0,
-  },
-  logoIconOuter: {
-    width: 62, height: 62, borderRadius: 18,
-    backgroundColor: 'rgba(0,200,83,0.15)',
-    borderWidth: 1, borderColor: 'rgba(0,200,83,0.5)',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  logoIconInner: {
-    width: 44, height: 44, borderRadius: 13,
-    backgroundColor: G.primary,
-    justifyContent: 'center', alignItems: 'center',
-    shadowColor: G.primary, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1, shadowRadius: 12,
-  },
-  logoSymbol: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  logoArrowLeft: {
-    width: 0, height: 0,
-    borderTopWidth: 7, borderBottomWidth: 7, borderRightWidth: 11,
-    borderTopColor: 'transparent', borderBottomColor: 'transparent', borderRightColor: '#000',
-  },
-  logoArrowRight: {
-    width: 0, height: 0,
-    borderTopWidth: 7, borderBottomWidth: 7, borderLeftWidth: 11,
-    borderTopColor: 'transparent', borderBottomColor: 'transparent', borderLeftColor: '#000',
   },
   appName: {
     fontSize: 48, fontWeight: '900', color: G.text,
