@@ -8,7 +8,8 @@ function AppStack() {
   const { isDark } = useTheme();
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false }} initialRouteName="splash">
+        <Stack.Screen name="splash" options={{ animation: 'none' }} />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="post-detail" options={{ animation: 'slide_from_right' }} />
