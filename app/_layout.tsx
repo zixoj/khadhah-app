@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Image, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, Image, StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
@@ -11,10 +11,10 @@ const SPLASH_IMAGE = require('../assets/images/WhatsApp_Image_2026-06-15_at_5.44
 const FADE_IN_MS = 600;
 const HOLD_MS = 3800;
 const FADE_OUT_MS = 600;
-const TOTAL_MS = FADE_IN_MS + HOLD_MS + FADE_OUT_MS; // 5000
 
 function SplashOverlay({ onDone }: { onDone: () => void }) {
   const opacity = useRef(new Animated.Value(0)).current;
+  const { width, height } = Dimensions.get('screen');
 
   useEffect(() => {
     Animated.sequence([
@@ -33,10 +33,19 @@ function SplashOverlay({ onDone }: { onDone: () => void }) {
   }, []);
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, styles.splash, { opacity }]}>
+    <Animated.View
+      style={[
+        styles.splash,
+        {
+          opacity,
+          width,
+          height,
+        },
+      ]}
+    >
       <Image
         source={SPLASH_IMAGE}
-        style={StyleSheet.absoluteFill}
+        style={{ width, height }}
         resizeMode="cover"
       />
     </Animated.View>
@@ -66,7 +75,7 @@ function AppStack() {
         <Stack.Screen name="user-profile" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StatusBar style="light" hidden />
     </>
   );
 }
@@ -92,9 +101,14 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: '#000',
   },
   splash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
     backgroundColor: '#000',
     zIndex: 9999,
+    elevation: 9999,
   },
 });
