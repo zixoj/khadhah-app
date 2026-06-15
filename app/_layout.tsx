@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Dimensions, Image, StyleSheet, View } from 'react-native';
+import { Animated, Image, StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
@@ -14,7 +14,6 @@ const FADE_OUT_MS = 600;
 
 function SplashOverlay({ onDone }: { onDone: () => void }) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const { width, height } = Dimensions.get('screen');
 
   useEffect(() => {
     Animated.sequence([
@@ -33,20 +32,11 @@ function SplashOverlay({ onDone }: { onDone: () => void }) {
   }, []);
 
   return (
-    <Animated.View
-      style={[
-        styles.splash,
-        {
-          opacity,
-          width,
-          height,
-        },
-      ]}
-    >
+    <Animated.View style={[styles.splash, { opacity }]}>
       <Image
         source={SPLASH_IMAGE}
-        style={{ width, height }}
-        resizeMode="cover"
+        style={{ width: '100%', height: '100%' }}
+        resizeMode="contain"
       />
     </Animated.View>
   );
@@ -107,7 +97,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    backgroundColor: '#000',
+    right: 0,
+    bottom: 0,
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
     zIndex: 9999,
     elevation: 9999,
   },
