@@ -19,17 +19,13 @@ import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
+import { getCitiesByCountry } from '@/lib/countries';
+import CountryCompleteModal from '@/components/CountryCompleteModal';
 import {
   ChevronLeft, Camera, MapPin, Check, Truck, User,
   MessageCircle, ArrowLeftRight, Gift, X, Flame, Plus,
   CheckCircle,
 } from 'lucide-react-native';
-
-const CITIES = [
-  'الرياض', 'جدة', 'مكة', 'المدينة', 'الدمام',
-  'الخبر', 'الظهران', 'تبوك', 'أبها', 'الطائف',
-  'بريدة', 'نجران', 'حائل', 'ينبع', 'الجبيل',
-];
 
 const CATEGORIES = [
   { label: 'إلكترونيات', value: 'electronics' },
@@ -74,7 +70,7 @@ export default function AddPostScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { type: typeParam } = useLocalSearchParams<{ type: string }>();
-  const { profile, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading, refreshProfile } = useAuth();
   const { colors: C, isDark } = useTheme();
 
   const [postType, setPostType] = useState<PostType>(typeParam === 'free' ? 'free' : 'exchange');
@@ -88,6 +84,10 @@ export default function AddPostScreen() {
   const [step, setStep] = useState<SubmitStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isUrgent, setIsUrgent] = useState(false);
+  const [showCountryModal, setShowCountryModal] = useState(false);
+
+  // Cities for the user's country
+  const userCities = getCitiesByCountry(profile?.country ?? null);
 
   const successScale = useRef(new Animated.Value(0.7)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
@@ -279,6 +279,10 @@ export default function AddPostScreen() {
 
     if (!title.trim()) { setError('الرجاء إدخال عنوان الإعلان'); return; }
     if (!category) { setError('الرجاء اختيار التصنيف'); return; }
+    if (!profile?.country) {
+      setShowCountryModal(true);
+      return;
+    }
     if (!city) { setError('الرجاء اختيار المدينة'); return; }
     if (!phone.trim()) { setError('الرجاء إدخال رقم الهاتف'); return; }
 
@@ -427,6 +431,13 @@ export default function AddPostScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: C.background }]}>
+      <CountryCompleteModal
+        visible={showCountryModal}
+        onComplete={async () => {
+          await refreshProfile();
+          setShowCountryModal(false);
+        }}
+      />
       {/* Nav bar */}
       <View style={[styles.navBar, { backgroundColor: isDark ? C.navBar : '#fff', borderBottomColor: isDark ? C.border : '#EBEBEB', paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={[styles.navIconBtn, { backgroundColor: isDark ? '#1A2020' : '#F4F7FA' }]}>
@@ -589,8 +600,19 @@ export default function AddPostScreen() {
 
         {/* ── المدينة ── */}
         <Text style={[styles.sectionLabel, { color: C.text }]}>المدينة</Text>
+        {!profile?.country && (
+          <TouchableOpacity
+            style={[styles.missingCountryBanner, { backgroundColor: isDark ? 'rgba(245,158,11,0.10)' : '#FFFBEB', borderColor: isDark ? 'rgba(245,158,11,0.3)' : '#FCD34D' }]}
+            onPress={() => setShowCountryModal(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.missingCountryText, { color: '#D97706' }]}>
+              يرجى إكمال بيانات الدولة ورقم الجوال قبل نشر الإعلان.
+            </Text>
+          </TouchableOpacity>
+        )}
         <View style={styles.chipGrid}>
-          {CITIES.map((c) => {
+          {userCities.map((c) => {
             const active = city === c;
             return (
               <TouchableOpacity
@@ -770,6 +792,12 @@ const styles = StyleSheet.create({
   },
   cityChip: { paddingHorizontal: 10, paddingVertical: 7 },
   chipText: { fontSize: FontSizes.sm, fontWeight: '600' },
+
+  missingCountryBanner: {
+    borderWidth: 1, borderRadius: 12,
+    paddingVertical: 10, paddingHorizontal: 14, marginBottom: 4,
+  },
+  missingCountryText: { fontSize: 13, textAlign: 'right', fontWeight: '600', lineHeight: 20 },
 
   deliveryList: { gap: 10 },
   deliveryRow: {

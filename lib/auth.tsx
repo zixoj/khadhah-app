@@ -123,13 +123,20 @@ function translateAuthError(error: AuthError): string {
   return msg || 'حدث خطأ أثناء عملية التحقق (code: ' + (code || 'unknown') + ')';
 }
 
+interface SignUpExtra {
+  country?: string;
+  countryCode?: string;
+  phoneNumber?: string;
+  fullPhoneNumber?: string;
+}
+
 interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
   isAdmin: boolean;
   isGuest: boolean;
-  signUp: (email: string, password: string, fullName: string, role: UserRole, phone: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, fullName: string, role: UserRole, phone: string, extra?: SignUpExtra) => Promise<{ error: string | null }>;
   signIn: (identifier: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -240,7 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, role: UserRole, phone: string) => {
+  const signUp = async (email: string, password: string, fullName: string, role: UserRole, phone: string, extra?: SignUpExtra) => {
     // Prevent registering as admin via signup
     if ((role as string) === 'admin') return { error: 'غير مسموح بإنشاء حساب مشرف' };
 
@@ -251,11 +258,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: translateAuthError(error) };
     }
 
-    // New user created
     const user = data.user;
     console.log('[Auth] signUp success, user:', user?.id, 'session:', !!data.session);
 
-    // If session is null, email confirmation may be required
     if (!data.session) {
       return { error: 'تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتفعيل الحساب' };
     }
@@ -267,6 +272,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         full_name: fullName,
         role,
         phone,
+        country: extra?.country ?? null,
+        country_code: extra?.countryCode ?? null,
+        phone_number: extra?.phoneNumber ?? null,
+        full_phone_number: extra?.fullPhoneNumber ?? phone ?? null,
       });
       if (profileError) {
         console.error('[Auth] profile insert error:', profileError.code, profileError.message);

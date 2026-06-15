@@ -31,6 +31,10 @@ export interface Profile {
   account_status: AccountStatus;
   must_change_password: boolean;
   is_hidden_from_public: boolean;
+  country: string | null;
+  country_code: string | null;
+  phone_number: string | null;
+  full_phone_number: string | null;
 }
 
 export interface Report {

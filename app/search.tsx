@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/ThemeContext';
 import { Spacing, FontSizes, BorderRadius } from '@/lib/theme';
+import { ALL_CITIES } from '@/lib/countries';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface SearchResult {
@@ -56,11 +57,7 @@ const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   CATEGORIES.filter(c => c.value).map(c => [c.value, c.label])
 );
 
-const CITIES = [
-  'الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام',
-  'الخبر', 'الأحساء', 'تبوك', 'أبها', 'القصيم',
-  'حائل', 'جازان', 'نجران', 'الطائف', 'ينبع',
-];
+const CITIES = ALL_CITIES;
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
