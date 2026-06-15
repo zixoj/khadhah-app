@@ -19,7 +19,7 @@ import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
-import { getCitiesByCountry } from '@/lib/countries';
+import { getCitiesByCountry, getStrictCitiesByCountry, COUNTRY_MAP } from '@/lib/countries';
 import CountryCompleteModal from '@/components/CountryCompleteModal';
 import {
   ChevronLeft, Camera, MapPin, Check, Truck, User,
@@ -86,8 +86,9 @@ export default function AddPostScreen() {
   const [isUrgent, setIsUrgent] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
 
-  // Cities for the user's country
-  const userCities = getCitiesByCountry(profile?.country ?? null);
+  // Cities strictly for the user's country only — empty if no country set
+  const userCities = getStrictCitiesByCountry(profile?.country ?? null);
+  const userCountryAr = profile?.country ? (COUNTRY_MAP[profile.country]?.nameAr ?? null) : null;
 
   const successScale = useRef(new Animated.Value(0.7)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
@@ -600,38 +601,52 @@ export default function AddPostScreen() {
 
         {/* ── المدينة ── */}
         <Text style={[styles.sectionLabel, { color: C.text }]}>المدينة</Text>
-        {!profile?.country && (
+
+        {/* Country header bar — shown only when country is set */}
+        {userCountryAr && (
+          <View style={[styles.countryHeader, { backgroundColor: isDark ? 'rgba(0,200,83,0.08)' : '#ECFDF5', borderColor: isDark ? 'rgba(0,200,83,0.25)' : '#A7F3D0' }]}>
+            <MapPin size={14} color={C.primary} />
+            <Text style={[styles.countryHeaderText, { color: C.primary }]}>{userCountryAr}</Text>
+          </View>
+        )}
+
+        {/* Warning + CTA when country is missing */}
+        {!profile?.country ? (
           <TouchableOpacity
             style={[styles.missingCountryBanner, { backgroundColor: isDark ? 'rgba(245,158,11,0.10)' : '#FFFBEB', borderColor: isDark ? 'rgba(245,158,11,0.3)' : '#FCD34D' }]}
             onPress={() => setShowCountryModal(true)}
             activeOpacity={0.8}
           >
             <Text style={[styles.missingCountryText, { color: '#D97706' }]}>
-              يرجى إكمال بيانات الدولة ورقم الجوال قبل نشر الإعلان.
+              يرجى إكمال بيانات الدولة ورقم الجوال قبل نشر الإعلان
             </Text>
+            <View style={[styles.missingCountryBtn, { backgroundColor: '#D97706' }]}>
+              <Text style={styles.missingCountryBtnText}>إكمال البيانات</Text>
+            </View>
           </TouchableOpacity>
+        ) : (
+          <View style={styles.chipGrid}>
+            {userCities.map((c) => {
+              const active = city === c;
+              return (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.chip, styles.cityChip, {
+                    backgroundColor: active ? (isDark ? `${C.primary}18` : C.primary) : cardBg,
+                    borderColor: active ? C.primary : inputBorder,
+                  }]}
+                  onPress={() => { setCity(c); setError(null); }}
+                  activeOpacity={0.7}
+                >
+                  <MapPin size={10} color={active ? (isDark ? C.primary : '#fff') : C.textSecondary} />
+                  <Text style={[styles.chipText, { color: active ? (isDark ? C.primary : '#fff') : C.textSecondary }]}>
+                    {c}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         )}
-        <View style={styles.chipGrid}>
-          {userCities.map((c) => {
-            const active = city === c;
-            return (
-              <TouchableOpacity
-                key={c}
-                style={[styles.chip, styles.cityChip, {
-                  backgroundColor: active ? (isDark ? `${C.primary}18` : C.primary) : cardBg,
-                  borderColor: active ? C.primary : inputBorder,
-                }]}
-                onPress={() => { setCity(c); setError(null); }}
-                activeOpacity={0.7}
-              >
-                <MapPin size={10} color={active ? (isDark ? C.primary : '#fff') : C.textSecondary} />
-                <Text style={[styles.chipText, { color: active ? (isDark ? C.primary : '#fff') : C.textSecondary }]}>
-                  {c}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
 
         {/* ── رقم الهاتف ── */}
         <Text style={[styles.sectionLabel, { color: C.text }]}>رقم الهاتف للتواصل</Text>
@@ -794,10 +809,23 @@ const styles = StyleSheet.create({
   chipText: { fontSize: FontSizes.sm, fontWeight: '600' },
 
   missingCountryBanner: {
-    borderWidth: 1, borderRadius: 12,
-    paddingVertical: 10, paddingHorizontal: 14, marginBottom: 4,
+    borderWidth: 1, borderRadius: 14,
+    paddingVertical: 14, paddingHorizontal: 14,
+    gap: 10,
   },
   missingCountryText: { fontSize: 13, textAlign: 'right', fontWeight: '600', lineHeight: 20 },
+  missingCountryBtn: {
+    alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 10,
+  },
+  missingCountryBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  countryHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-end', paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 20, borderWidth: 1, marginBottom: 4,
+  },
+  countryHeaderText: { fontSize: 13, fontWeight: '700' },
 
   deliveryList: { gap: 10 },
   deliveryRow: {

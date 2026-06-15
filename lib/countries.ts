@@ -12,9 +12,9 @@ export const COUNTRIES: Country[] = [
     code: '+966',
     cities: [
       'الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام',
-      'الخبر', 'الظهران', 'الطائف', 'تبوك', 'أبها',
-      'خميس مشيط', 'حائل', 'بريدة', 'عنيزة', 'نجران',
-      'جازان', 'الأحساء', 'ينبع', 'الجبيل', 'الخرج',
+      'الخبر', 'الطائف', 'أبها', 'خميس مشيط', 'تبوك',
+      'حائل', 'بريدة', 'عنيزة', 'جازان', 'نجران',
+      'ينبع', 'الأحساء', 'الخرج',
     ],
   },
   {
@@ -27,19 +27,19 @@ export const COUNTRIES: Country[] = [
     ],
   },
   {
-    nameAr: 'البحرين',
-    nameEn: 'Bahrain',
-    code: '+973',
-    cities: [
-      'المنامة', 'المحرق', 'الرفاع', 'مدينة حمد', 'مدينة عيسى', 'سترة',
-    ],
-  },
-  {
     nameAr: 'قطر',
     nameEn: 'Qatar',
     code: '+974',
     cities: [
-      'الدوحة', 'الريان', 'الوكرة', 'الخور', 'لوسيل', 'أم صلال', 'مسيعيد',
+      'الدوحة', 'الريان', 'الوكرة', 'الخور', 'لوسيل', 'أم صلال',
+    ],
+  },
+  {
+    nameAr: 'البحرين',
+    nameEn: 'Bahrain',
+    code: '+973',
+    cities: [
+      'المنامة', 'المحرق', 'الرفاع', 'مدينة حمد', 'سترة', 'مدينة عيسى',
     ],
   },
   {
@@ -56,7 +56,8 @@ export const COUNTRIES: Country[] = [
     nameEn: 'Oman',
     code: '+968',
     cities: [
-      'مسقط', 'صلالة', 'صحار', 'نزوى', 'صور', 'السيب', 'بركاء', 'إبري',
+      'مسقط', 'صلالة', 'صحار', 'نزوى', 'بركاء',
+      'عبري', 'صور', 'السيب',
     ],
   },
   {
@@ -64,8 +65,8 @@ export const COUNTRIES: Country[] = [
     nameEn: 'Jordan',
     code: '+962',
     cities: [
-      'عمّان', 'الزرقاء', 'إربد', 'العقبة', 'السلط', 'مادبا',
-      'الكرك', 'المفرق', 'جرش',
+      'عمّان', 'الزرقاء', 'إربد', 'العقبة', 'السلط',
+      'مادبا', 'جرش', 'عجلون',
     ],
   },
   {
@@ -73,8 +74,8 @@ export const COUNTRIES: Country[] = [
     nameEn: 'Syria',
     code: '+963',
     cities: [
-      'دمشق', 'حلب', 'حمص', 'حماة', 'اللاذقية', 'طرطوس',
-      'دير الزور', 'الرقة', 'إدلب', 'درعا',
+      'دمشق', 'حلب', 'حمص', 'حماة', 'اللاذقية',
+      'طرطوس', 'دير الزور',
     ],
   },
   {
@@ -83,8 +84,7 @@ export const COUNTRIES: Country[] = [
     code: '+20',
     cities: [
       'القاهرة', 'الجيزة', 'الإسكندرية', 'المنصورة', 'طنطا',
-      'بورسعيد', 'السويس', 'الإسماعيلية', 'الأقصر', 'أسوان',
-      'أسيوط', 'الزقازيق', 'شرم الشيخ', 'الغردقة',
+      'أسيوط', 'سوهاج', 'الأقصر', 'أسوان',
     ],
   },
 ];
@@ -95,9 +95,16 @@ export const COUNTRY_MAP: Record<string, Country> = Object.fromEntries(
 
 export const ALL_CITIES: string[] = COUNTRIES.flatMap((c) => c.cities);
 
+/** Returns only the cities for a specific country, or ALL_CITIES as a fallback. */
 export function getCitiesByCountry(countryNameEn: string | null | undefined): string[] {
   if (!countryNameEn) return ALL_CITIES;
   return COUNTRY_MAP[countryNameEn]?.cities ?? ALL_CITIES;
+}
+
+/** Returns the cities for a specific country only — empty array if unknown/missing. */
+export function getStrictCitiesByCountry(countryNameEn: string | null | undefined): string[] {
+  if (!countryNameEn) return [];
+  return COUNTRY_MAP[countryNameEn]?.cities ?? [];
 }
 
 export function getCountryByCode(code: string): Country | undefined {
