@@ -96,7 +96,8 @@ export default function ExchangeScreen() {
       .order('is_urgent', { ascending: false })
       .order('created_at', { ascending: false });
     if (selectedCategory) query = query.eq('category', selectedCategory);
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) console.error('[ExchangeScreen] fetchListings error:', error.message);
     if (data) setListings(data);
     setLoading(false);
     setRefreshing(false);
@@ -300,11 +301,12 @@ export default function ExchangeScreen() {
           loading ? (
             <View style={styles.centerContent}>
               <ActivityIndicator size="large" color={colors.exchange} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>جاري تحميل الإعلانات…</Text>
             </View>
           ) : (
             <View style={styles.centerContent}>
               <ArrowLeftRight size={48} color={isDark ? 'rgba(255,255,255,0.1)' : '#E0E8EF'} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>لا توجد إعلانات تبديل حالياً</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>لا توجد إعلانات حالياً</Text>
             </View>
           )
         }

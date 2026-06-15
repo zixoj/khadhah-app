@@ -119,7 +119,8 @@ export default function FreeScreen() {
   }, []);
 
   const fetchListings = useCallback(async () => {
-    supabase.rpc('expire_stale_reservations');
+    // Only call RPC when authenticated — anon has no execute grant
+    if (profile) supabase.rpc('expire_stale_reservations');
     let query = supabase
       .from('listings')
       .select('*')
@@ -128,11 +129,12 @@ export default function FreeScreen() {
       .order('is_urgent', { ascending: false })
       .order('created_at', { ascending: false });
     if (selectedCategory) query = query.eq('category', selectedCategory);
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) console.error('[FreeScreen] fetchListings error:', error.message);
     if (data) setListings(data);
     setLoading(false);
     setRefreshing(false);
-  }, [selectedCategory]);
+  }, [selectedCategory, profile]);
 
   useEffect(() => { setLoading(true); fetchListings(); }, [fetchListings]);
 
@@ -359,11 +361,12 @@ export default function FreeScreen() {
           loading ? (
             <View style={styles.centerContent}>
               <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>جاري تحميل الإعلانات…</Text>
             </View>
           ) : (
             <View style={styles.centerContent}>
               <Gift size={48} color={isDark ? 'rgba(255,255,255,0.1)' : '#E0E8EF'} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>لا توجد إعلانات عطاء حالياً</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>لا توجد إعلانات حالياً</Text>
             </View>
           )
         }

@@ -8,6 +8,7 @@ import {
   Image,
   TextInput,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -51,16 +52,22 @@ export default function HomeScreen() {
   const { colors: C, isDark } = useTheme();
   const { guard, GuestGateModal } = useGuestGate();
   const [recent, setRecent] = useState<RecentListing[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
 
   const loadRecent = useCallback(() => {
+    setRecentLoading(true);
     supabase
       .from('listings')
       .select('id, title, type, city, image_url, is_urgent, created_at, status')
-      .in('status', ['available', 'reserved'])
+      .in('status', ['available', 'reserved', 'reserved_temp'])
       .order('created_at', { ascending: false })
       .limit(6)
-      .then(({ data }) => { if (data) setRecent(data); });
+      .then(({ data, error }) => {
+        if (error) console.error('[HomeScreen] loadRecent error:', error.message);
+        if (data) setRecent(data);
+        setRecentLoading(false);
+      });
   }, []);
 
   useFocusEffect(loadRecent);
@@ -186,15 +193,25 @@ export default function HomeScreen() {
       </View>
 
       {/* ── Recent listings ── */}
-      {recent.length > 0 && (
-        <View style={styles.recentSection}>
-          <View style={styles.sectionHeader}>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/free')} activeOpacity={0.7}>
-              <Text style={[styles.seeAll, { color: C.primary }]}>عرض الكل</Text>
-            </TouchableOpacity>
-            <Text style={[styles.sectionTitle, { color: C.text }]}>آخر الإعلانات</Text>
-          </View>
+      <View style={styles.recentSection}>
+        <View style={styles.sectionHeader}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/free')} activeOpacity={0.7}>
+            <Text style={[styles.seeAll, { color: C.primary }]}>عرض الكل</Text>
+          </TouchableOpacity>
+          <Text style={[styles.sectionTitle, { color: C.text }]}>آخر الإعلانات</Text>
+        </View>
 
+        {recentLoading ? (
+          <View style={styles.recentCenter}>
+            <ActivityIndicator size="large" color={C.primary} />
+            <Text style={[styles.recentEmptyText, { color: C.textSecondary }]}>جاري تحميل الإعلانات…</Text>
+          </View>
+        ) : recent.length === 0 ? (
+          <View style={styles.recentCenter}>
+            <Gift size={40} color={isDark ? 'rgba(255,255,255,0.10)' : '#D1D5DB'} />
+            <Text style={[styles.recentEmptyText, { color: C.textSecondary }]}>لا توجد إعلانات حالياً</Text>
+          </View>
+        ) : (
           <View style={styles.recentGrid}>
             {recent.map((item) => {
               const sConf = STATUS_CONFIG[item.status] ?? { label: item.status, bg: 'rgba(100,116,139,0.18)', dot: '#9CA3AF' };
@@ -272,8 +289,8 @@ export default function HomeScreen() {
               );
             })}
           </View>
-        </View>
-      )}
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -522,4 +539,14 @@ const styles = StyleSheet.create({
   },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   metaText: { fontSize: 10, fontWeight: '500' },
+
+  recentCenter: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  recentEmptyText: {
+    fontSize: FontSizes.md,
+    textAlign: 'center',
+  },
 });
