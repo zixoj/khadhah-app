@@ -8,7 +8,6 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Globe, Phone, ChevronDown, X, Check } from 'lucide-react-native';
@@ -24,7 +23,7 @@ interface Props {
 
 export default function CountryCompleteModal({ visible, onComplete }: Props) {
   const insets = useSafeAreaInsets();
-  const { profile, refreshProfile } = useAuth();
+  const { refreshProfile } = useAuth();
   const { colors: C, isDark } = useTheme();
 
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
@@ -33,43 +32,64 @@ export default function CountryCompleteModal({ visible, onComplete }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Derived — no state, no effect needed
   const fullPhone = selectedCountry
-    ? `${selectedCountry.code}${phoneNumber.replace(/^0/, '')}`
+    ? `${selectedCountry.code}${phoneNumber.replace(/^0+/, '')}`
     : phoneNumber;
 
   const handleSave = async () => {
-    if (!selectedCountry) { setError('الرجاء اختيار الدولة'); return; }
-    if (!phoneNumber.trim()) { setError('الرجاء إدخال رقم الجوال'); return; }
-    if (/[a-zA-Z]/.test(phoneNumber)) { setError('رقم الجوال يجب أن يحتوي على أرقام فقط'); return; }
-    if (!profile?.id) return;
+    if (!selectedCountry) {
+      setError('الرجاء اختيار الدولة');
+      return;
+    }
+    if (!phoneNumber.trim()) {
+      setError('الرجاء إدخال رقم الجوال');
+      return;
+    }
+    if (/[a-zA-Z]/.test(phoneNumber)) {
+      setError('رقم الجوال يجب أن يحتوي على أرقام فقط');
+      return;
+    }
 
     setSaving(true);
     setError(null);
 
-    const { data, error: rpcErr } = await supabase.rpc('update_profile_fields', {
-      p_country: selectedCountry.nameEn,
-      p_country_code: selectedCountry.code,
-      p_phone_number: phoneNumber.trim(),
-      p_full_phone_number: fullPhone,
-      p_phone: fullPhone,
-    });
+    try {
+      const { data, error: rpcErr } = await supabase.rpc('save_user_country', {
+        p_country: selectedCountry.nameEn,
+        p_country_code: selectedCountry.code,
+        p_phone_number: phoneNumber.trim(),
+        p_full_phone_number: fullPhone,
+      });
 
-    if (rpcErr) {
-      setError(rpcErr.message);
+      if (rpcErr) {
+        setError('حدث خطأ أثناء الحفظ. حاول مرة أخرى.');
+        console.error('[CountryModal] rpc error:', rpcErr.message);
+        setSaving(false);
+        return;
+      }
+
+      const result = data as { success: boolean; reason?: string } | null;
+      if (!result?.success) {
+        const msgs: Record<string, string> = {
+          phone_taken: 'رقم الجوال هذا مستخدم بالفعل',
+          country_required: 'الرجاء اختيار الدولة',
+          phone_required: 'الرجاء إدخال رقم الجوال',
+          profile_not_found: 'لم يُعثر على الملف الشخصي. سجّل الدخول مرة أخرى.',
+        };
+        setError(msgs[result?.reason ?? ''] ?? 'حدث خطأ غير متوقع');
+        setSaving(false);
+        return;
+      }
+
+      await refreshProfile();
       setSaving(false);
-      return;
-    }
-
-    const result = data as { success: boolean; reason?: string };
-    if (!result.success) {
-      setError(result.reason === 'phone_taken' ? 'رقم الجوال هذا مستخدم بالفعل' : 'حدث خطأ، حاول مرة أخرى');
+      onComplete();
+    } catch (e: any) {
+      console.error('[CountryModal] unexpected error:', e);
+      setError('حدث خطأ في الاتصال. تحقق من الشبكة وأعد المحاولة.');
       setSaving(false);
-      return;
     }
-
-    await refreshProfile();
-    setSaving(false);
-    onComplete();
   };
 
   const bg = isDark ? '#0D1410' : '#fff';
@@ -81,14 +101,17 @@ export default function CountryCompleteModal({ visible, onComplete }: Props) {
   const primary = '#00C853';
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
       <View style={styles.overlay}>
         {/* Country picker sheet */}
         {showPicker && (
           <View style={[styles.pickerSheet, { backgroundColor: cardBg, paddingBottom: insets.bottom + 16 }]}>
             <View style={[styles.pickerHeader, { borderBottomColor: borderCol }]}>
               <Text style={[styles.pickerTitle, { color: textCol }]}>اختر دولتك</Text>
-              <TouchableOpacity onPress={() => setShowPicker(false)} style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#F0F4F2' }]}>
+              <TouchableOpacity
+                onPress={() => setShowPicker(false)}
+                style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#F0F4F2' }]}
+              >
                 <X size={18} color={textCol} />
               </TouchableOpacity>
             </View>
@@ -96,23 +119,32 @@ export default function CountryCompleteModal({ visible, onComplete }: Props) {
               data={COUNTRIES}
               keyExtractor={(item) => item.nameEn}
               showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[styles.countryItem, { borderBottomColor: borderCol }, selectedCountry?.nameEn === item.nameEn && { backgroundColor: isDark ? 'rgba(0,200,83,0.08)' : '#ECFDF5' }]}
-                  onPress={() => { setSelectedCountry(item); setShowPicker(false); setError(null); }}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.codeBadge, { backgroundColor: isDark ? 'rgba(0,200,83,0.10)' : '#E6F9EE', borderColor: isDark ? 'rgba(0,200,83,0.20)' : '#A7F3D0' }]}>
-                    <Text style={[styles.codeText, { color: primary }]}>{item.code}</Text>
-                  </View>
-                  <Text style={[styles.countryName, { color: textCol }, selectedCountry?.nameEn === item.nameEn && { color: primary, fontWeight: '700' }]}>
-                    {item.nameAr}
-                  </Text>
-                  {selectedCountry?.nameEn === item.nameEn && (
-                    <Check size={16} color={primary} />
-                  )}
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const active = selectedCountry?.nameEn === item.nameEn;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.countryItem,
+                      { borderBottomColor: borderCol },
+                      active && { backgroundColor: isDark ? 'rgba(0,200,83,0.08)' : '#ECFDF5' },
+                    ]}
+                    onPress={() => {
+                      setSelectedCountry(item);
+                      setShowPicker(false);
+                      setError(null);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.codeBadge, { backgroundColor: isDark ? 'rgba(0,200,83,0.10)' : '#E6F9EE', borderColor: isDark ? 'rgba(0,200,83,0.20)' : '#A7F3D0' }]}>
+                      <Text style={[styles.codeText, { color: primary }]}>{item.code}</Text>
+                    </View>
+                    <Text style={[styles.countryName, { color: active ? primary : textCol }, active && { fontWeight: '700' }]}>
+                      {item.nameAr}
+                    </Text>
+                    {active && <Check size={16} color={primary} />}
+                  </TouchableOpacity>
+                );
+              }}
             />
           </View>
         )}
@@ -120,7 +152,6 @@ export default function CountryCompleteModal({ visible, onComplete }: Props) {
         {/* Main card */}
         {!showPicker && (
           <View style={[styles.card, { backgroundColor: bg, paddingBottom: insets.bottom + 24 }]}>
-            {/* Header */}
             <View style={[styles.iconWrap, { backgroundColor: isDark ? 'rgba(0,200,83,0.10)' : '#ECFDF5' }]}>
               <Globe size={32} color={primary} />
             </View>
@@ -157,7 +188,10 @@ export default function CountryCompleteModal({ visible, onComplete }: Props) {
                 placeholder="اكتب رقم جوالك"
                 placeholderTextColor={mutedCol}
                 value={phoneNumber}
-                onChangeText={(t) => { setPhoneNumber(t.replace(/[^0-9]/g, '')); setError(null); }}
+                onChangeText={(t) => {
+                  setPhoneNumber(t.replace(/[^0-9]/g, ''));
+                  if (error) setError(null);
+                }}
                 keyboardType="phone-pad"
                 textAlign="right"
               />
@@ -190,12 +224,15 @@ export default function CountryCompleteModal({ visible, onComplete }: Props) {
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
   },
   card: {
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingHorizontal: 24, paddingTop: 28,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 28,
     gap: 12,
   },
   iconWrap: {
@@ -205,13 +242,8 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: '800', textAlign: 'center' },
   subtitle: { fontSize: 14, textAlign: 'center', lineHeight: 22 },
-
-  errorBox: {
-    borderWidth: 1, borderRadius: 12,
-    paddingVertical: 10, paddingHorizontal: 12,
-  },
+  errorBox: { borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12 },
   errorText: { color: '#EF4444', fontSize: 13, textAlign: 'right', fontWeight: '600' },
-
   label: { fontSize: 13, fontWeight: '700', textAlign: 'right' },
   selectRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -219,7 +251,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 14, minHeight: 52,
   },
   selectText: { flex: 1, fontSize: 15, textAlign: 'right' },
-
   phoneRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderWidth: 1.5, borderRadius: 14,
@@ -232,7 +263,6 @@ const styles = StyleSheet.create({
     borderRadius: 10, borderWidth: 1,
   },
   codeBox_text: { fontSize: 14, fontWeight: '700' },
-
   saveBtn: {
     borderRadius: 16, paddingVertical: 16,
     alignItems: 'center', marginTop: 8,
@@ -240,7 +270,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 12, elevation: 5,
   },
   saveBtnText: { fontSize: 17, fontWeight: '800', color: '#000' },
-
   // Picker sheet
   pickerSheet: {
     flex: 1, borderTopLeftRadius: 28, borderTopRightRadius: 28,
@@ -251,10 +280,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1,
   },
   pickerTitle: { fontSize: 18, fontWeight: '800' },
-  closeBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    justifyContent: 'center', alignItems: 'center',
-  },
+  closeBtn: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
   countryItem: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1,

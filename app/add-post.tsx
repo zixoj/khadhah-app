@@ -70,7 +70,7 @@ export default function AddPostScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { type: typeParam } = useLocalSearchParams<{ type: string }>();
-  const { profile, loading: authLoading, refreshProfile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const { colors: C, isDark } = useTheme();
 
   const [postType, setPostType] = useState<PostType>(typeParam === 'free' ? 'free' : 'exchange');
@@ -434,10 +434,7 @@ export default function AddPostScreen() {
     <View style={[styles.container, { backgroundColor: C.background }]}>
       <CountryCompleteModal
         visible={showCountryModal}
-        onComplete={async () => {
-          await refreshProfile();
-          setShowCountryModal(false);
-        }}
+        onComplete={() => setShowCountryModal(false)}
       />
       {/* Nav bar */}
       <View style={[styles.navBar, { backgroundColor: isDark ? C.navBar : '#fff', borderBottomColor: isDark ? C.border : '#EBEBEB', paddingTop: insets.top + 8 }]}>
