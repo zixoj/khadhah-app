@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider } from '@/lib/auth';
 import { ThemeProvider, useTheme } from '@/lib/ThemeContext';
+import { LanguageProvider } from '@/lib/LanguageContext';
 
 const SPLASH_IMAGE = require('../assets/images/WhatsApp_Image_2026-06-15_at_5.44.16_AM.jpeg');
 
@@ -75,6 +76,7 @@ export default function RootLayout() {
   const [splashDone, setSplashDone] = useState(false);
 
   return (
+    <LanguageProvider>
     <ThemeProvider>
       <AuthProvider>
         <View style={styles.root}>
@@ -85,6 +87,7 @@ export default function RootLayout() {
         </View>
       </AuthProvider>
     </ThemeProvider>
+    </LanguageProvider>
   );
 }
 

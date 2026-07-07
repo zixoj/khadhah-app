@@ -14,9 +14,10 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, Lock, Eye, EyeOff, Globe } from 'lucide-react-native';
 import VerseCard from '@/components/VerseCard';
 import Svg, { Path, Rect, Circle, Line, Defs, RadialGradient, Stop, G as SvgG, LinearGradient } from 'react-native-svg';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 
@@ -367,6 +368,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signIn, enterGuestMode } = useAuth();
+  const { language, isRTL, setLanguage, t } = useLanguage();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -396,38 +398,20 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
-    console.log('[LoginScreen] ====== LOGIN BUTTON PRESSED ======');
-    console.log('[LoginScreen] Email input value:', JSON.stringify(email));
-    console.log('[LoginScreen] Email trimmed:', JSON.stringify(email.trim()));
-    console.log('[LoginScreen] Password length:', password.length);
-    console.log('[LoginScreen] Has @ in email:', email.includes('@'));
-
     if (!email.trim() || !password) {
-      console.log('[LoginScreen] Validation failed - empty fields');
-      setError('الرجاء إدخال البريد الإلكتروني وكلمة المرور');
+      setError(t('emptyFields'));
       return;
     }
     setLoading(true);
     setError(null);
-    console.log('[LoginScreen] Calling signIn...');
     try {
       const { error: err } = await signIn(email.trim(), password);
-      console.log('[LoginScreen] ====== SIGNIN RESULT ======');
-      console.log('[LoginScreen] Error returned:', err ? 'YES: ' + err : 'NO - Success');
       if (err) {
-        console.log('[LoginScreen] Setting error in UI');
         setError(err);
-      } else {
-        console.log('[LoginScreen] Login successful, should redirect');
       }
     } catch (e: any) {
-      console.error('[LoginScreen] ====== CATCH ERROR ======');
-      console.error('[LoginScreen] Exception:', e);
-      console.error('[LoginScreen] Message:', e?.message);
-      console.error('[LoginScreen] Stack:', e?.stack);
-      setError('مشكلة اتصال بالسيرفر. تحقق من الإنترنت وأعد المحاولة');
+      setError(t('networkError'));
     } finally {
-      console.log('[LoginScreen] Setting loading false');
       setLoading(false);
     }
   };
@@ -438,6 +422,11 @@ export default function LoginScreen() {
   const handleGuest = async () => {
     await enterGuestMode();
   };
+
+  // Dynamic row direction: RTL keeps current layout, LTR mirrors it
+  const inputRowDir = isRTL ? 'row' : 'row-reverse';
+  const textDir = isRTL ? 'right' : 'left';
+
   return (
     <View style={styles.root}>
       {PARTICLES.map((p, i) => <Particle key={i} {...p} />)}
@@ -450,6 +439,23 @@ export default function LoginScreen() {
 
       {/* Saudi skyline — sits at bottom, behind scroll content */}
       <SaudiSkyline />
+
+      {/* Language switcher — absolutely positioned top-right, always visible */}
+      <View style={[styles.langBtnWrap, { top: insets.top + 16, right: 16 }]}>
+        <TouchableOpacity
+          style={styles.langBtn}
+          onPress={() => {
+            setError(null);
+            setLanguage(language === 'ar' ? 'en' : 'ar');
+          }}
+          activeOpacity={0.75}
+        >
+          <Globe size={13} color={G.primary} strokeWidth={2.2} />
+          <Text style={styles.langBtnText}>
+            {language === 'ar' ? 'EN' : 'العربية'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <KeyboardAvoidingView style={styles.kav} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
@@ -476,7 +482,6 @@ export default function LoginScreen() {
               {/* Exchange arrows SVG logo */}
               <Svg width={52} height={48} viewBox="0 0 52 48">
                 {/* Top arrow — green, pointing right */}
-                {/* Curved path: starts left, arcs up, ends at arrowhead on right */}
                 <Path
                   d="M6 28 C6 14, 20 10, 34 14 L30 8 L46 18 L30 26 L34 20 C22 17, 12 20, 12 30"
                   fill="none"
@@ -486,7 +491,6 @@ export default function LoginScreen() {
                   strokeLinejoin="round"
                 />
                 {/* Bottom arrow — white, pointing left */}
-                {/* Curved path: starts right, arcs down, ends at arrowhead on left */}
                 <Path
                   d="M46 20 C46 34, 32 38, 18 34 L22 40 L6 30 L22 22 L18 28 C30 31, 40 28, 40 18"
                   fill="none"
@@ -499,7 +503,7 @@ export default function LoginScreen() {
             </View>
             <Text style={styles.appName}>خذها</Text>
             <View style={styles.appNameUnderline} />
-            <Text style={styles.tagline}>بدّل أو اعطِ بكل سهولة</Text>
+            <Text style={styles.tagline}>{t('tagline')}</Text>
           </Animated.View>
 
           {/* ── Quran verse card ── */}
@@ -517,21 +521,20 @@ export default function LoginScreen() {
           >
             {error && (
               <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={[styles.errorText, { textAlign: textDir }]}>{error}</Text>
               </View>
             )}
 
             {/* Email */}
-            <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocus]}>
+            <View style={[styles.inputWrap, { flexDirection: inputRowDir }, emailFocused && styles.inputWrapFocus]}>
               <TextInput
-                style={styles.input}
-                placeholder="البريد الإلكتروني"
+                style={[styles.input, { textAlign: textDir }]}
+                placeholder={t('emailPlaceholder')}
                 placeholderTextColor={G.textMuted}
                 value={email}
-                onChangeText={(t) => { setEmail(t); setError(null); }}
+                onChangeText={(v) => { setEmail(v); setError(null); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                textAlign="right"
                 onFocus={() => setEmailFocused(true)}
                 onBlur={() => setEmailFocused(false)}
               />
@@ -541,7 +544,7 @@ export default function LoginScreen() {
             </View>
 
             {/* Password */}
-            <View style={[styles.inputWrap, passFocused && styles.inputWrapFocus]}>
+            <View style={[styles.inputWrap, { flexDirection: inputRowDir }, passFocused && styles.inputWrapFocus]}>
               <TouchableOpacity onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
                 {showPass
                   ? <EyeOff size={17} color={G.textMuted} />
@@ -549,13 +552,12 @@ export default function LoginScreen() {
                 }
               </TouchableOpacity>
               <TextInput
-                style={styles.input}
-                placeholder="كلمة المرور"
+                style={[styles.input, { textAlign: textDir }]}
+                placeholder={t('passwordPlaceholder')}
                 placeholderTextColor={G.textMuted}
                 value={password}
-                onChangeText={(t) => { setPassword(t); setError(null); }}
+                onChangeText={(v) => { setPassword(v); setError(null); }}
                 secureTextEntry={!showPass}
-                textAlign="right"
                 onFocus={() => setPassFocused(true)}
                 onBlur={() => setPassFocused(false)}
               />
@@ -583,13 +585,13 @@ export default function LoginScreen() {
             >
               <View style={styles.primaryBtnShine} />
               <Text style={styles.primaryBtnText}>
-                {loading ? 'جاري الدخول...' : 'تسجيل الدخول'}
+                {loading ? t('signingIn') : t('signIn')}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>أو</Text>
+              <Text style={styles.dividerText}>{t('or')}</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -598,7 +600,7 @@ export default function LoginScreen() {
               onPress={() => router.push('/register')}
               activeOpacity={0.82}
             >
-              <Text style={styles.secondaryBtnText}>إنشاء حساب جديد</Text>
+              <Text style={styles.secondaryBtnText}>{t('createAccount')}</Text>
             </TouchableOpacity>
 
             {/* ── Guest Mode Button ── */}
@@ -609,9 +611,9 @@ export default function LoginScreen() {
             >
               <View style={styles.guestBtnInner}>
                 <Text style={styles.guestBtnIcon}>👀</Text>
-                <View style={styles.guestBtnTextWrap}>
-                  <Text style={styles.guestBtnTextAr}>المتابعة كزائر</Text>
-                  <Text style={styles.guestBtnTextEn}>Continue as Guest</Text>
+                <View style={[styles.guestBtnTextWrap, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
+                  <Text style={styles.guestBtnTextAr}>{t('guestMain')}</Text>
+                  <Text style={styles.guestBtnTextEn}>{t('guestSub')}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -630,6 +632,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     justifyContent: 'center',
     gap: 24,
+  },
+
+  // ── Language switcher ──
+  langBtnWrap: {
+    position: 'absolute',
+    zIndex: 100,
+  },
+  langBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,200,83,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,200,83,0.30)',
+  },
+  langBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: G.primary,
+    letterSpacing: 0.3,
   },
 
   ambientGlow: {
@@ -705,10 +730,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,68,68,0.3)', borderRadius: 14,
     paddingVertical: 10, paddingHorizontal: 14,
   },
-  errorText: { color: G.error, fontSize: 13, textAlign: 'right', fontWeight: '600' },
+  errorText: { color: G.error, fontSize: 13, fontWeight: '600' },
 
   inputWrap: {
-    flexDirection: 'row', alignItems: 'center',
+    alignItems: 'center',
     backgroundColor: G.inputBg,
     borderWidth: 1.5, borderColor: G.border, borderRadius: 18,
     paddingHorizontal: 14,
@@ -727,7 +752,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   inputIconActive: { backgroundColor: 'rgba(0,200,83,0.10)' },
-  input: { flex: 1, fontSize: 15, color: G.text, paddingVertical: 12, textAlign: 'right' },
+  input: { flex: 1, fontSize: 15, color: G.text, paddingVertical: 12 },
   eyeBtn: { padding: 6 },
 
   // ── Buttons ──
