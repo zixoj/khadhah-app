@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   Animated,
-  ActivityIndicator,
   Dimensions,
   Platform,
 } from 'react-native';
@@ -17,8 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import {
-  ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin, Heart,
-  Search, SlidersHorizontal, Globe, ChevronDown,
+  ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin,
+  Search, SlidersHorizontal, Globe, ChevronDown, PackageOpen,
 } from 'lucide-react-native';
 import { useGuestGate } from '@/hooks/useGuestGate';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -32,7 +31,7 @@ const { width: SW, height: SH } = Dimensions.get('window');
 const CARD_W = (SW - 48 - 12) / 2;
 const BAR_H = 76;
 
-// ─── Tokens ─────────────────────────────────────────────────────────────────
+// ─── Design tokens ───────────────────────────────────────────────────────────
 const D = {
   bg:          '#050505',
   cardDark:    'rgba(8,18,12,0.88)',
@@ -52,19 +51,51 @@ interface RecentListing {
   id: string; title: string; type: string; city: string;
   image_url: string; is_urgent: boolean; created_at: string; status: string;
 }
+
 const STATUS: Record<string, { label: string; bg: string; dot: string }> = {
-  available:     { label: 'متاح',  bg: 'rgba(34,197,94,0.20)',  dot: '#22C55E' },
-  reserved:      { label: 'محجوز', bg: 'rgba(245,158,11,0.20)', dot: '#F59E0B' },
-  reserved_temp: { label: 'محجوز', bg: 'rgba(245,158,11,0.20)', dot: '#F59E0B' },
-  taken:         { label: 'مأخوذ', bg: 'rgba(239,68,68,0.20)',  dot: '#EF4444' },
+  available:     { label: 'متاح',  bg: 'rgba(34,197,94,0.18)',  dot: '#22C55E' },
+  reserved:      { label: 'محجوز', bg: 'rgba(245,158,11,0.18)', dot: '#F59E0B' },
+  reserved_temp: { label: 'محجوز', bg: 'rgba(245,158,11,0.18)', dot: '#F59E0B' },
+  taken:         { label: 'مأخوذ', bg: 'rgba(239,68,68,0.18)',  dot: '#EF4444' },
 };
+
 function timeAgo(d: string) {
   const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
   if (s < 60) return 'الآن';
-  if (s < 3600) return `منذ ${Math.floor(s / 60)} دقيقة`;
-  if (s < 86400) return `منذ ${Math.floor(s / 3600)} ساعة`;
-  return `منذ ${Math.floor(s / 86400)} يوم`;
+  if (s < 3600) return `${Math.floor(s / 60)} د`;
+  if (s < 86400) return `${Math.floor(s / 3600)} س`;
+  return `${Math.floor(s / 86400)} يوم`;
 }
+
+// ─── Shimmer skeleton ────────────────────────────────────────────────────────
+function SkeletonCard() {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  const bg = anim.interpolate({ inputRange: [0, 1], outputRange: ['rgba(255,255,255,0.04)', 'rgba(255,255,255,0.09)'] });
+  return (
+    <View style={sk.card}>
+      <Animated.View style={[sk.img, { backgroundColor: bg }]} />
+      <View style={sk.body}>
+        <Animated.View style={[sk.line, { width: '80%', backgroundColor: bg }]} />
+        <Animated.View style={[sk.line, { width: '52%', backgroundColor: bg, marginTop: 6 }]} />
+        <Animated.View style={[sk.line, { width: '36%', backgroundColor: bg, marginTop: 6 }]} />
+      </View>
+    </View>
+  );
+}
+const sk = StyleSheet.create({
+  card: { width: CARD_W, borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(12,12,12,0.82)', borderWidth: 1, borderColor: D.border },
+  img:  { width: '100%', height: 110 },
+  body: { padding: 10 },
+  line: { height: 10, borderRadius: 6 },
+});
 
 // ─── Background particles ────────────────────────────────────────────────────
 const PARTICLES = [
@@ -180,19 +211,14 @@ function LuxuryBackground() {
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
       <View style={[StyleSheet.absoluteFillObject, { backgroundColor: D.bg }]} />
-      {/* Glass rings */}
       <View style={bg.r1} /><View style={bg.r2} /><View style={bg.r3} /><View style={bg.r4} />
-      {/* Ambient blobs */}
       <View style={bg.gTop} /><View style={bg.gMid} />
       <RiyadhSkyline />
-      {/* Tint */}
       <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(4,12,7,0.80)' }]} />
-      {/* Gradients */}
       <LinearGradient colors={['rgba(5,5,5,0.96)', 'rgba(5,5,5,0.45)', 'transparent']}
         style={bg.gradTop} pointerEvents="none" />
       <LinearGradient colors={['transparent', 'rgba(5,5,5,0.65)', 'rgba(5,5,5,0.92)']}
         style={bg.gradBot} pointerEvents="none" />
-      {/* Vignette */}
       <LinearGradient colors={['rgba(5,5,5,0.32)', 'transparent']}
         start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
         style={bg.vigL} pointerEvents="none" />
@@ -216,17 +242,15 @@ const bg = StyleSheet.create({
   vigR: { position: 'absolute', top: 0, right: 0, bottom: 0, width: SW * 0.13 },
 });
 
-// ─── Quran Card ────────────────────────────────────────────────────────────────
+// ─── Quran Card ───────────────────────────────────────────────────────────────
 function QuranCard({ anim }: { anim: Animated.Value }) {
   return (
     <Animated.View style={[s.qc, {
       opacity: anim,
       transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
     }]}>
-      {/* Outer glow */}
       <View style={s.qcGlow} />
       <View style={s.qcCard}>
-        {/* Islamic leaf corner */}
         <View style={s.qcLeaf} pointerEvents="none">
           <Svg width={52} height={52} viewBox="0 0 52 52">
             <Path d="M 0 52 Q 0 38 14 38 Q 14 24 28 24 Q 28 10 42 10 Q 42 0 52 0"
@@ -239,7 +263,6 @@ function QuranCard({ anim }: { anim: Animated.Value }) {
             <Circle cx={47} cy={5} r={1.3} fill="rgba(34,197,94,0.35)" />
           </Svg>
         </View>
-        {/* Green accent bar */}
         <View style={s.qcBar} />
         <View style={s.qcContent}>
           <Text style={s.qcQ}>﴿</Text>
@@ -253,7 +276,7 @@ function QuranCard({ anim }: { anim: Animated.Value }) {
   );
 }
 
-// ─── Action Card ───────────────────────────────────────────────────────────────
+// ─── Action Card ──────────────────────────────────────────────────────────────
 function ActionCard({
   label, sub, pill, imageUri, accentColor, borderColor, iconEl, gradTop, onPress,
 }: {
@@ -269,48 +292,135 @@ function ActionCard({
     <TouchableOpacity onPress={onPress} onPressIn={pressIn} onPressOut={pressOut}
       activeOpacity={1} style={{ flex: 1 }}>
       <Animated.View style={[s.ac, { borderColor, shadowColor: accentColor, transform: [{ scale }] }]}>
-        {/* Bottom image */}
         <Image source={{ uri: imageUri }} style={s.acImg} resizeMode="cover" />
-        {/* Gradient: solid at top → transparent → let image show */}
         <LinearGradient
           colors={[gradTop, gradTop.replace(/[\d.]+\)$/, '0.33)'), 'transparent']}
           style={s.acGradTop}
           pointerEvents="none"
         />
-        {/* Gradient: darken bottom edge */}
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.55)']}
           style={s.acGradBot}
           pointerEvents="none"
         />
-
-        {/* Content */}
         <View style={s.acContent}>
-          {/* Pill label */}
           <View style={[s.acPill, { borderColor: `${accentColor}40`, backgroundColor: `${accentColor}18` }]}>
             <Text style={[s.acPillText, { color: accentColor }]}>{pill}</Text>
           </View>
-          {/* Icon */}
           <View style={[s.acIconWrap, { backgroundColor: `${accentColor}1A` }]}>
             {iconEl}
           </View>
           <Text style={s.acLabel}>{label}</Text>
           <Text style={[s.acSub, { color: `${accentColor}CC` }]}>{sub}</Text>
         </View>
-
-        {/* Arrow button — bottom-left in RTL */}
         <View style={[s.acArrow, { backgroundColor: `${accentColor}22`, borderColor: `${accentColor}40` }]}>
           <Text style={[s.acArrowText, { color: accentColor }]}>←</Text>
         </View>
-
-        {/* Top thin glow line */}
         <View style={[s.acTopLine, { backgroundColor: accentColor }]} />
       </Animated.View>
     </TouchableOpacity>
   );
 }
 
-// ─── Main Screen ───────────────────────────────────────────────────────────────
+// ─── Listing Card ─────────────────────────────────────────────────────────────
+function ListingCard({ item, onPress }: { item: RecentListing; onPress: () => void }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const pressIn  = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, tension: 180, friction: 10 }).start();
+  const pressOut = () => Animated.spring(scale, { toValue: 1.0,  useNativeDriver: true, tension: 100, friction: 8  }).start();
+
+  const sc = STATUS[item.status] ?? { label: item.status, bg: 'rgba(100,116,139,0.18)', dot: '#9CA3AF' };
+  const isFree = item.type === 'free';
+  const typeColor = isFree ? D.primary : D.exchange;
+  const typeLabel = isFree ? 'مجاني' : 'بدّل';
+  const TypeIcon  = isFree ? Gift : ArrowLeftRight;
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      onPressIn={pressIn}
+      onPressOut={pressOut}
+      activeOpacity={1}
+      style={{ width: CARD_W }}
+    >
+      <Animated.View style={[s.rCard, { transform: [{ scale }] }]}>
+        {/* Image or placeholder */}
+        {item.image_url ? (
+          <Image source={{ uri: item.image_url }} style={s.rImg} resizeMode="cover" />
+        ) : (
+          <View style={[s.rImgPH, { backgroundColor: isFree ? 'rgba(34,197,94,0.08)' : 'rgba(56,189,248,0.08)' }]}>
+            <TypeIcon size={26} color={typeColor} strokeWidth={1.5} />
+          </View>
+        )}
+
+        {/* Image bottom gradient */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.62)']}
+          style={s.rImgGrad}
+          pointerEvents="none"
+        />
+
+        {/* Top badges row */}
+        <View style={s.rBadgeRow}>
+          {/* Urgent badge */}
+          {item.is_urgent && (
+            <View style={s.urgBadge}>
+              <Flame size={8} color="#fff" strokeWidth={2.5} />
+              <Text style={s.urgTxt}>مستعجل</Text>
+            </View>
+          )}
+          {/* Status badge — right-aligned using spacer */}
+          <View style={{ flex: 1 }} />
+          <View style={[s.stBadge, { backgroundColor: sc.bg }]}>
+            <View style={[s.stDot, { backgroundColor: sc.dot }]} />
+            <Text style={[s.stTxt, { color: sc.dot }]}>{sc.label}</Text>
+          </View>
+        </View>
+
+        {/* Type pill — bottom-left of image */}
+        <View style={[s.typePill, { backgroundColor: `${typeColor}22`, borderColor: `${typeColor}44` }]}>
+          <TypeIcon size={8} color={typeColor} strokeWidth={2.5} />
+          <Text style={[s.typeTxt, { color: typeColor }]}>{typeLabel}</Text>
+        </View>
+
+        {/* Body */}
+        <View style={s.rBody}>
+          <Text style={s.rTitle} numberOfLines={2}>{item.title}</Text>
+          <View style={s.rMeta}>
+            {item.city ? (
+              <View style={s.mRow}>
+                <MapPin size={9} color={D.textMuted} strokeWidth={2} />
+                <Text style={s.mTxt} numberOfLines={1}>{item.city}</Text>
+              </View>
+            ) : null}
+            <View style={s.mRowRight}>
+              <Clock size={9} color={D.textMuted} strokeWidth={2} />
+              <Text style={s.mTxt}>{timeAgo(item.created_at)}</Text>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+function EmptyListings({ onAdd }: { onAdd: () => void }) {
+  return (
+    <View style={s.emptyWrap}>
+      <View style={s.emptyIconWrap}>
+        <PackageOpen size={36} color="rgba(34,197,94,0.45)" strokeWidth={1.5} />
+      </View>
+      <Text style={s.emptyTitle}>لا توجد إعلانات بعد</Text>
+      <Text style={s.emptySub}>كن أول من ينشر إعلاناً في مجتمعك</Text>
+      <TouchableOpacity style={s.emptyBtn} onPress={onAdd} activeOpacity={0.82}>
+        <Plus size={14} color={D.bg} strokeWidth={2.8} />
+        <Text style={s.emptyBtnTxt}>أضف أول إعلان</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter();
   const { isGuest } = useAuth();
@@ -318,10 +428,9 @@ export default function HomeScreen() {
   const { guard, GuestGateModal } = useGuestGate();
   const { language, setLanguage } = useLanguage();
 
-  const [recent, setRecent]     = useState<RecentListing[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [recent, setRecent]   = useState<RecentListing[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Staggered entry animations
   const a0 = useRef(new Animated.Value(0)).current;
   const a1 = useRef(new Animated.Value(0)).current;
   const a2 = useRef(new Animated.Value(0)).current;
@@ -348,8 +457,7 @@ export default function HomeScreen() {
       .in('status', ['available', 'reserved', 'reserved_temp'])
       .order('created_at', { ascending: false })
       .limit(6)
-      .then(({ data, error }) => {
-        if (error) console.error('[Home] loadRecent:', error.message);
+      .then(({ data }) => {
         if (data) setRecent(data);
         setLoading(false);
       });
@@ -361,22 +469,25 @@ export default function HomeScreen() {
     ? Math.max(insets.bottom, 8) + BAR_H + 40
     : BAR_H + 50;
 
+  const handleAddPost = () => guard(() => router.push('/add-post'));
+
   return (
     <View style={s.root}>
       <LuxuryBackground />
       {PARTICLES.map((p, i) => <Particle key={i} {...p} />)}
       <GuestGateModal />
 
-      {/* Language selector — absolutely positioned top-right */}
+      {/* Language toggle — absolute top-right */}
       <View style={[s.langWrap, { top: insets.top + 14, right: 20 }]}>
         <TouchableOpacity
           style={s.langBtn}
           onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
-          activeOpacity={0.75}
+          activeOpacity={0.70}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Globe size={12} color="rgba(255,255,255,0.80)" strokeWidth={2} />
+          <Globe size={13} color="rgba(255,255,255,0.75)" strokeWidth={1.8} />
           <Text style={s.langText}>{language === 'ar' ? 'العربية' : 'EN'}</Text>
-          <ChevronDown size={11} color="rgba(255,255,255,0.60)" strokeWidth={2} />
+          <ChevronDown size={11} color="rgba(255,255,255,0.50)" strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -385,12 +496,11 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: insets.top + 20, paddingBottom: bottomPad }}
       >
-        {/* ── 1. Logo / Brand ─────────────────────────────── */}
+        {/* ── 1. Logo / Brand ──────────────────────────────── */}
         <Animated.View style={[s.logoSec, {
           opacity: a0,
           transform: [{ translateY: a0.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] }) }],
         }]}>
-          {/* Exchange arrows icon */}
           <View style={s.logoIcon}>
             <View style={s.logoIconGlow} />
             <Svg width={36} height={32} viewBox="0 0 52 48">
@@ -423,32 +533,29 @@ export default function HomeScreen() {
           <QuranCard anim={a2} />
         </View>
 
-        {/* ── 4. Search + Filter Row ────────────────────────── */}
+        {/* ── 4. Search + Filter Row ───────────────────────── */}
         <Animated.View style={[s.searchRow, {
           opacity: a3,
           transform: [{ translateY: a3.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
         }]}>
-          {/* Filter button */}
           <TouchableOpacity
             style={s.filterBtn}
             onPress={() => router.push('/search')}
-            activeOpacity={0.80}
+            activeOpacity={0.78}
           >
             <SlidersHorizontal size={18} color={D.primary} strokeWidth={2} />
           </TouchableOpacity>
-
-          {/* Search pill */}
           <TouchableOpacity
             style={s.searchPill}
             onPress={() => router.push('/search')}
-            activeOpacity={0.85}
+            activeOpacity={0.82}
           >
             <Text style={s.searchText}>ابحث عن إعلانات، مدن، فئات...</Text>
             <Search size={16} color={D.textMuted} strokeWidth={2} />
           </TouchableOpacity>
         </Animated.View>
 
-        {/* ── 5. Two Action Cards ──────────────────────────── */}
+        {/* ── 5. Action Cards ──────────────────────────────── */}
         <Animated.View style={[s.cardRow, {
           opacity: a4,
           transform: [{ translateY: a4.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }],
@@ -477,14 +584,14 @@ export default function HomeScreen() {
           />
         </Animated.View>
 
-        {/* ── 6. Add Listing CTA ───────────────────────────── */}
+        {/* ── 6. CTA Button ────────────────────────────────── */}
         <Animated.View style={[s.pH, {
           opacity: a4,
           transform: [{ translateY: a4.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }],
         }]}>
           <TouchableOpacity
             style={s.ctaBtn}
-            onPress={() => guard(() => router.push('/add-post'))}
+            onPress={handleAddPost}
             activeOpacity={0.86}
           >
             <LinearGradient colors={['#22C55E', '#16A34A', '#15803D']}
@@ -492,7 +599,7 @@ export default function HomeScreen() {
               style={StyleSheet.absoluteFillObject} />
             <View style={s.ctaShine} />
             <Plus size={20} color="#fff" strokeWidth={3} />
-            <Text style={s.ctaText}>+ أضف إعلان</Text>
+            <Text style={s.ctaText}>أضف إعلاناً</Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -502,60 +609,31 @@ export default function HomeScreen() {
           transform: [{ translateY: a5.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) }],
         }}>
           <View style={s.secHeader}>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/free')} activeOpacity={0.7}>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/exchange')}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 12, right: 4 }}
+            >
               <Text style={s.seeAll}>عرض الكل</Text>
             </TouchableOpacity>
-            <Text style={s.secTitle}>آخر الإعلانات ✨</Text>
+            <Text style={s.secTitle}>آخر الإعلانات</Text>
           </View>
 
           {loading ? (
-            <View style={s.rCenter}>
-              <ActivityIndicator size="large" color={D.primary} />
-              <Text style={s.rEmpty}>جاري التحميل...</Text>
+            <View style={s.rGrid}>
+              {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} />)}
             </View>
           ) : recent.length === 0 ? (
-            <View style={s.rCenter}>
-              <Gift size={38} color="rgba(255,255,255,0.10)" />
-              <Text style={s.rEmpty}>لا توجد إعلانات حالياً</Text>
-            </View>
+            <EmptyListings onAdd={handleAddPost} />
           ) : (
             <View style={s.rGrid}>
-              {recent.map((item) => {
-                const sc = STATUS[item.status] ?? { label: item.status, bg: 'rgba(100,116,139,0.18)', dot: '#9CA3AF' };
-                return (
-                  <TouchableOpacity key={item.id} style={s.rCard}
-                    onPress={() => router.push(`/post-detail?id=${item.id}`)} activeOpacity={0.82}>
-                    {item.image_url
-                      ? <Image source={{ uri: item.image_url }} style={s.rImg} />
-                      : (
-                        <View style={[s.rImgPH, { backgroundColor: item.type === 'free' ? 'rgba(34,197,94,0.08)' : 'rgba(56,189,248,0.08)' }]}>
-                          {item.type === 'free' ? <Gift size={24} color={D.primary} /> : <ArrowLeftRight size={24} color={D.exchange} />}
-                        </View>
-                      )}
-                    <LinearGradient colors={['transparent', 'rgba(0,0,0,0.55)']}
-                      style={s.rImgGrad} pointerEvents="none" />
-                    <View style={s.rBadges}>
-                      {item.is_urgent && (
-                        <View style={s.urgBadge}><Flame size={8} color="#fff" /><Text style={s.urgTxt}>مستعجل</Text></View>
-                      )}
-                      <View style={[s.stBadge, { backgroundColor: sc.bg }]}>
-                        <View style={[s.stDot, { backgroundColor: sc.dot }]} />
-                        <Text style={[s.stTxt, { color: sc.dot }]}>{sc.label}</Text>
-                      </View>
-                    </View>
-                    <View style={s.rHeart}><Heart size={11} color="#9CA3AF" /></View>
-                    <View style={s.rBody}>
-                      <Text style={s.rTitle} numberOfLines={2}>{item.title}</Text>
-                      <View style={s.rMeta}>
-                        {item.city ? (
-                          <View style={s.mRow}><MapPin size={9} color={D.textSec} /><Text style={s.mTxt}>{item.city}</Text></View>
-                        ) : null}
-                        <View style={s.mRow}><Clock size={9} color={D.textSec} /><Text style={s.mTxt}>{timeAgo(item.created_at)}</Text></View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+              {recent.map((item) => (
+                <ListingCard
+                  key={item.id}
+                  item={item}
+                  onPress={() => router.push(`/post-detail?id=${item.id}`)}
+                />
+              ))}
             </View>
           )}
         </Animated.View>
@@ -570,16 +648,17 @@ const s = StyleSheet.create({
   scroll: { flex: 1 },
   pH:     { paddingHorizontal: 20 },
 
-  // Language
+  // Language toggle
   langWrap: { position: 'absolute', zIndex: 100 },
   langBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 14, paddingVertical: 9,
-    borderRadius: 22,
-    backgroundColor: 'rgba(8,22,13,0.70)',
-    borderWidth: 1, borderColor: 'rgba(34,197,94,0.28)',
+    paddingHorizontal: 13, paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(6,16,10,0.78)',
+    borderWidth: 1, borderColor: 'rgba(34,197,94,0.22)',
+    shadowColor: D.primary, shadowOpacity: 0.10, shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
   },
-  langText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.85)', letterSpacing: 0.3 },
+  langText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.82)', letterSpacing: 0.3 },
 
   // Logo
   logoSec: { alignItems: 'center', paddingTop: 12, paddingBottom: 2, gap: 4, marginBottom: 2 },
@@ -601,23 +680,23 @@ const s = StyleSheet.create({
   },
   logoTagline: {
     fontSize: 12, fontWeight: '500',
-    color: 'rgba(207,207,207,0.62)', letterSpacing: 0.4,
+    color: 'rgba(207,207,207,0.60)', letterSpacing: 0.4,
   },
 
   // Hero
   heroSec: { alignItems: 'center', paddingHorizontal: 24, paddingVertical: 12, gap: 5, marginBottom: 6 },
-  heroTop: { fontSize: 19, fontWeight: '700', color: 'rgba(255,255,255,0.72)', textAlign: 'center' },
+  heroTop: { fontSize: 19, fontWeight: '700', color: 'rgba(255,255,255,0.70)', textAlign: 'center' },
   heroRow: { flexDirection: 'row', alignItems: 'baseline', gap: 0 },
   heroGreen: {
     fontSize: 38, fontWeight: '900', color: D.primary, letterSpacing: -1.2,
     textShadowColor: 'rgba(34,197,94,0.48)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12,
   },
-  heroOr:   { fontSize: 24, fontWeight: '700', color: 'rgba(255,255,255,0.78)' },
+  heroOr:   { fontSize: 24, fontWeight: '700', color: 'rgba(255,255,255,0.75)' },
   heroGold: {
     fontSize: 38, fontWeight: '900', color: D.gold, letterSpacing: -1.2,
     textShadowColor: 'rgba(212,175,55,0.42)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 12,
   },
-  heroDesc: { fontSize: 13.5, color: D.textSec, textAlign: 'center', lineHeight: 21, opacity: 0.82, marginTop: 2 },
+  heroDesc: { fontSize: 13.5, color: D.textSec, textAlign: 'center', lineHeight: 21, opacity: 0.80, marginTop: 2 },
 
   // Quran card
   qc:     { marginBottom: 14 },
@@ -650,21 +729,21 @@ const s = StyleSheet.create({
     paddingHorizontal: 20, marginBottom: 14,
   },
   filterBtn: {
-    width: 58, height: 58, borderRadius: 29,
+    width: 54, height: 54, borderRadius: 27,
     backgroundColor: 'rgba(8,20,12,0.88)',
-    borderWidth: 1, borderColor: 'rgba(34,197,94,0.24)',
+    borderWidth: 1, borderColor: 'rgba(34,197,94,0.22)',
     justifyContent: 'center', alignItems: 'center',
-    shadowColor: D.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.18, shadowRadius: 10,
+    shadowColor: D.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.15, shadowRadius: 10,
   },
   searchPill: {
-    flex: 1, height: 58, borderRadius: 29,
+    flex: 1, height: 54, borderRadius: 27,
     backgroundColor: 'rgba(10,18,13,0.85)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.09)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
     flexDirection: 'row', alignItems: 'center',
     paddingLeft: 14, paddingRight: 18, gap: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.22, shadowRadius: 12,
   },
-  searchText: { flex: 1, fontSize: 13.5, color: D.textMuted, textAlign: 'right' },
+  searchText: { flex: 1, fontSize: 13, color: D.textMuted, textAlign: 'right' },
 
   // Action cards
   cardRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 14 },
@@ -701,61 +780,95 @@ const s = StyleSheet.create({
 
   // CTA
   ctaBtn: {
-    height: 66, borderRadius: 24,
+    height: 62, borderRadius: 22,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     overflow: 'hidden',
-    shadowColor: D.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.55, shadowRadius: 22,
+    shadowColor: D.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.50, shadowRadius: 20,
     elevation: 10, marginBottom: 24,
   },
   ctaShine: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: '48%',
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    position: 'absolute', top: 0, left: 0, right: 0, height: '46%',
+    backgroundColor: 'rgba(255,255,255,0.09)',
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
   },
-  ctaText: { fontSize: 18, fontWeight: '800', color: D.white, letterSpacing: 0.4 },
+  ctaText: { fontSize: 17, fontWeight: '800', color: D.white, letterSpacing: 0.3 },
 
-  // Recent
+  // Section header
   secHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, marginBottom: 12,
   },
-  secTitle: { fontSize: 17, fontWeight: '800', color: D.white, letterSpacing: -0.2 },
+  secTitle: { fontSize: 16, fontWeight: '800', color: D.white, letterSpacing: -0.2 },
   seeAll:   { fontSize: 13, fontWeight: '600', color: D.primary },
+
+  // Listing grid
   rGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 12 },
+
+  // Listing card
   rCard: {
-    width: CARD_W, borderRadius: 18, overflow: 'hidden',
-    backgroundColor: 'rgba(12,12,12,0.82)', borderWidth: 1, borderColor: D.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.28, shadowRadius: 12, elevation: 5,
+    borderRadius: 18, overflow: 'hidden',
+    backgroundColor: 'rgba(10,16,12,0.90)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.30, shadowRadius: 12, elevation: 5,
   },
-  rImg: { width: '100%', height: 110, resizeMode: 'cover' },
-  rImgPH: { width: '100%', height: 110, justifyContent: 'center', alignItems: 'center' },
-  rImgGrad: { position: 'absolute', top: 60, left: 0, right: 0, height: 50 },
-  rBadges: {
+  rImg:    { width: '100%', height: 116, resizeMode: 'cover' },
+  rImgPH:  { width: '100%', height: 116, justifyContent: 'center', alignItems: 'center' },
+  rImgGrad: { position: 'absolute', top: 56, left: 0, right: 0, height: 60 },
+
+  rBadgeRow: {
     position: 'absolute', top: 7, left: 7, right: 7,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
   },
   urgBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 99,
+    backgroundColor: '#DC2626', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 99,
   },
-  urgTxt:  { fontSize: 9, color: '#fff', fontWeight: '700' },
+  urgTxt: { fontSize: 9, color: '#fff', fontWeight: '700' },
   stBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
-    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 99,
-    backgroundColor: 'rgba(0,0,0,0.42)',
+    paddingHorizontal: 6, paddingVertical: 3, borderRadius: 99,
+    backgroundColor: 'rgba(0,0,0,0.50)',
   },
-  stDot:  { width: 5, height: 5, borderRadius: 3 },
-  stTxt:  { fontSize: 9, fontWeight: '700' },
-  rHeart: {
-    position: 'absolute', top: 7, right: 7,
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: 'rgba(0,0,0,0.50)', justifyContent: 'center', alignItems: 'center',
+  stDot: { width: 5, height: 5, borderRadius: 3 },
+  stTxt: { fontSize: 9, fontWeight: '700' },
+
+  typePill: {
+    position: 'absolute', bottom: 44, left: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 99, borderWidth: 1,
   },
-  rBody:  { padding: 10, gap: 4 },
-  rTitle: { fontSize: 12.5, fontWeight: '700', color: D.white, textAlign: 'right', lineHeight: 18 },
-  rMeta:  { flexDirection: 'row', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 5 },
-  mRow:   { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  mTxt:   { fontSize: 9.5, fontWeight: '500', color: D.textSec },
-  rCenter: { paddingVertical: 40, alignItems: 'center', gap: 10, paddingHorizontal: 20 },
-  rEmpty:  { fontSize: 14, color: D.textSec, textAlign: 'center' },
+  typeTxt: { fontSize: 9, fontWeight: '700' },
+
+  rBody:  { paddingHorizontal: 10, paddingTop: 8, paddingBottom: 10, gap: 5 },
+  rTitle: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.92)', textAlign: 'right', lineHeight: 18 },
+  rMeta:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mRow:   { flexDirection: 'row', alignItems: 'center', gap: 3, flex: 1 },
+  mRowRight: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  mTxt:   { fontSize: 9.5, fontWeight: '500', color: 'rgba(207,207,207,0.58)' },
+
+  // Empty state
+  emptyWrap: {
+    marginHorizontal: 20, paddingVertical: 36, paddingHorizontal: 24,
+    alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(8,18,12,0.60)',
+    borderRadius: 24, borderWidth: 1, borderColor: 'rgba(34,197,94,0.12)',
+  },
+  emptyIconWrap: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: 'rgba(34,197,94,0.08)',
+    borderWidth: 1, borderColor: 'rgba(34,197,94,0.18)',
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: 'rgba(255,255,255,0.80)', textAlign: 'center' },
+  emptySub:   { fontSize: 13, color: 'rgba(207,207,207,0.52)', textAlign: 'center', lineHeight: 20 },
+  emptyBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    marginTop: 6,
+    backgroundColor: D.primary,
+    paddingHorizontal: 20, paddingVertical: 11,
+    borderRadius: 16,
+    shadowColor: D.primary, shadowOpacity: 0.40, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
+  },
+  emptyBtnTxt: { fontSize: 14, fontWeight: '700', color: D.bg },
 });
