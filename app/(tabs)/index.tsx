@@ -13,11 +13,11 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import {
   ArrowLeftRight, Gift, Plus, Flame, Clock, MapPin,
-  Search, SlidersHorizontal, Globe, ChevronDown, PackageOpen,
+  Search, SlidersHorizontal, Globe, PackageOpen,
+  AlertCircle,
 } from 'lucide-react-native';
 import { useGuestGate } from '@/hooks/useGuestGate';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -28,7 +28,7 @@ import Svg, {
 } from 'react-native-svg';
 
 const { width: SW, height: SH } = Dimensions.get('window');
-const CARD_W = (SW - 48 - 12) / 2;
+const CARD_W = (SW - 40 - 12) / 2;
 const BAR_H = 76;
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
@@ -91,9 +91,9 @@ function SkeletonCard() {
   );
 }
 const sk = StyleSheet.create({
-  card: { width: CARD_W, borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(12,12,12,0.82)', borderWidth: 1, borderColor: D.border },
-  img:  { width: '100%', height: 110 },
-  body: { padding: 10 },
+  card: { width: CARD_W, borderRadius: 18, overflow: 'hidden', backgroundColor: D.cardDark, borderWidth: 1, borderColor: D.border },
+  img:  { width: '100%', height: 116 },
+  body: { paddingHorizontal: 10, paddingTop: 8, paddingBottom: 10 },
   line: { height: 10, borderRadius: 6 },
 });
 
@@ -290,7 +290,9 @@ function ActionCard({
 
   return (
     <TouchableOpacity onPress={onPress} onPressIn={pressIn} onPressOut={pressOut}
-      activeOpacity={1} style={{ flex: 1 }}>
+      activeOpacity={1} style={{ flex: 1 }}
+      accessibilityRole="button" accessibilityLabel={label}
+    >
       <Animated.View style={[s.ac, { borderColor, shadowColor: accentColor, transform: [{ scale }] }]}>
         <Image source={{ uri: imageUri }} style={s.acImg} resizeMode="cover" />
         <LinearGradient
@@ -340,7 +342,8 @@ function ListingCard({ item, onPress }: { item: RecentListing; onPress: () => vo
       onPressIn={pressIn}
       onPressOut={pressOut}
       activeOpacity={1}
-      style={{ width: CARD_W }}
+      accessibilityRole="button"
+      accessibilityLabel={item.title}
     >
       <Animated.View style={[s.rCard, { transform: [{ scale }] }]}>
         {/* Image or placeholder */}
@@ -361,15 +364,14 @@ function ListingCard({ item, onPress }: { item: RecentListing; onPress: () => vo
 
         {/* Top badges row */}
         <View style={s.rBadgeRow}>
-          {/* Urgent badge */}
-          {item.is_urgent && (
+          {item.is_urgent ? (
             <View style={s.urgBadge}>
               <Flame size={8} color="#fff" strokeWidth={2.5} />
               <Text style={s.urgTxt}>مستعجل</Text>
             </View>
+          ) : (
+            <View />
           )}
-          {/* Status badge — right-aligned using spacer */}
-          <View style={{ flex: 1 }} />
           <View style={[s.stBadge, { backgroundColor: sc.bg }]}>
             <View style={[s.stDot, { backgroundColor: sc.dot }]} />
             <Text style={[s.stTxt, { color: sc.dot }]}>{sc.label}</Text>
@@ -412,7 +414,9 @@ function EmptyListings({ onAdd }: { onAdd: () => void }) {
       </View>
       <Text style={s.emptyTitle}>لا توجد إعلانات بعد</Text>
       <Text style={s.emptySub}>كن أول من ينشر إعلاناً في مجتمعك</Text>
-      <TouchableOpacity style={s.emptyBtn} onPress={onAdd} activeOpacity={0.82}>
+      <TouchableOpacity style={s.emptyBtn} onPress={onAdd} activeOpacity={0.82}
+        accessibilityRole="button" accessibilityLabel="أضف أول إعلان"
+      >
         <Plus size={14} color={D.bg} strokeWidth={2.8} />
         <Text style={s.emptyBtnTxt}>أضف أول إعلان</Text>
       </TouchableOpacity>
@@ -420,16 +424,31 @@ function EmptyListings({ onAdd }: { onAdd: () => void }) {
   );
 }
 
+// ─── Error state ──────────────────────────────────────────────────────────────
+function ErrorBanner({ onRetry }: { onRetry: () => void }) {
+  return (
+    <View style={s.errWrap}>
+      <AlertCircle size={18} color="rgba(239,68,68,0.70)" strokeWidth={1.5} />
+      <Text style={s.errTxt}>تعذر تحميل الإعلانات</Text>
+      <TouchableOpacity onPress={onRetry} activeOpacity={0.75}
+        accessibilityRole="button" accessibilityLabel="إعادة المحاولة"
+      >
+        <Text style={s.errRetry}>إعادة المحاولة</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  const router = useRouter();
-  const { isGuest } = useAuth();
-  const insets = useSafeAreaInsets();
+  const router  = useRouter();
+  const insets  = useSafeAreaInsets();
   const { guard, GuestGateModal } = useGuestGate();
   const { language, setLanguage } = useLanguage();
 
-  const [recent, setRecent]   = useState<RecentListing[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [recent,   setRecent]   = useState<RecentListing[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   const a0 = useRef(new Animated.Value(0)).current;
   const a1 = useRef(new Animated.Value(0)).current;
@@ -451,14 +470,19 @@ export default function HomeScreen() {
 
   const loadRecent = useCallback(() => {
     setLoading(true);
+    setHasError(false);
     supabase
       .from('listings')
       .select('id, title, type, city, image_url, is_urgent, created_at, status')
       .in('status', ['available', 'reserved', 'reserved_temp'])
       .order('created_at', { ascending: false })
       .limit(6)
-      .then(({ data }) => {
-        if (data) setRecent(data);
+      .then(({ data, error }) => {
+        if (error) {
+          setHasError(true);
+        } else {
+          setRecent(data ?? []);
+        }
         setLoading(false);
       });
   }, []);
@@ -483,11 +507,12 @@ export default function HomeScreen() {
           style={s.langBtn}
           onPress={() => setLanguage(language === 'ar' ? 'en' : 'ar')}
           activeOpacity={0.70}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
         >
-          <Globe size={13} color="rgba(255,255,255,0.75)" strokeWidth={1.8} />
+          <Globe size={13} color="rgba(255,255,255,0.72)" strokeWidth={1.8} />
           <Text style={s.langText}>{language === 'ar' ? 'العربية' : 'EN'}</Text>
-          <ChevronDown size={11} color="rgba(255,255,255,0.50)" strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -542,6 +567,8 @@ export default function HomeScreen() {
             style={s.filterBtn}
             onPress={() => router.push('/search')}
             activeOpacity={0.78}
+            accessibilityRole="button"
+            accessibilityLabel="تصفية النتائج"
           >
             <SlidersHorizontal size={18} color={D.primary} strokeWidth={2} />
           </TouchableOpacity>
@@ -549,6 +576,8 @@ export default function HomeScreen() {
             style={s.searchPill}
             onPress={() => router.push('/search')}
             activeOpacity={0.82}
+            accessibilityRole="search"
+            accessibilityLabel="البحث في الإعلانات"
           >
             <Text style={s.searchText}>ابحث عن إعلانات، مدن، فئات...</Text>
             <Search size={16} color={D.textMuted} strokeWidth={2} />
@@ -593,6 +622,8 @@ export default function HomeScreen() {
             style={s.ctaBtn}
             onPress={handleAddPost}
             activeOpacity={0.86}
+            accessibilityRole="button"
+            accessibilityLabel="أضف إعلاناً جديداً"
           >
             <LinearGradient colors={['#22C55E', '#16A34A', '#15803D']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
@@ -612,7 +643,9 @@ export default function HomeScreen() {
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/exchange')}
               activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 12, right: 4 }}
+              hitSlop={{ top: 10, bottom: 10, left: 12, right: 4 }}
+              accessibilityRole="link"
+              accessibilityLabel="عرض جميع الإعلانات"
             >
               <Text style={s.seeAll}>عرض الكل</Text>
             </TouchableOpacity>
@@ -623,6 +656,8 @@ export default function HomeScreen() {
             <View style={s.rGrid}>
               {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} />)}
             </View>
+          ) : hasError ? (
+            <ErrorBanner onRetry={loadRecent} />
           ) : recent.length === 0 ? (
             <EmptyListings onAdd={handleAddPost} />
           ) : (
@@ -798,7 +833,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 20, marginBottom: 12,
   },
-  secTitle: { fontSize: 16, fontWeight: '800', color: D.white, letterSpacing: -0.2 },
+  secTitle: { fontSize: 17, fontWeight: '800', color: 'rgba(255,255,255,0.92)', letterSpacing: -0.2 },
   seeAll:   { fontSize: 13, fontWeight: '600', color: D.primary },
 
   // Listing grid
@@ -806,45 +841,49 @@ const s = StyleSheet.create({
 
   // Listing card
   rCard: {
+    width: CARD_W,
     borderRadius: 18, overflow: 'hidden',
-    backgroundColor: 'rgba(10,16,12,0.90)',
+    backgroundColor: D.cardDark,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.30, shadowRadius: 12, elevation: 5,
   },
   rImg:    { width: '100%', height: 116, resizeMode: 'cover' },
   rImgPH:  { width: '100%', height: 116, justifyContent: 'center', alignItems: 'center' },
-  rImgGrad: { position: 'absolute', top: 56, left: 0, right: 0, height: 60 },
+  rImgGrad: { position: 'absolute', top: 58, left: 0, right: 0, height: 58 },
 
   rBadgeRow: {
     position: 'absolute', top: 7, left: 7, right: 7,
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
   urgBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: '#DC2626', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 99,
+    maxWidth: 72,
   },
   urgTxt: { fontSize: 9, color: '#fff', fontWeight: '700' },
   stBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 6, paddingVertical: 3, borderRadius: 99,
-    backgroundColor: 'rgba(0,0,0,0.50)',
+    backgroundColor: 'rgba(0,0,0,0.52)',
   },
   stDot: { width: 5, height: 5, borderRadius: 3 },
   stTxt: { fontSize: 9, fontWeight: '700' },
 
   typePill: {
-    position: 'absolute', bottom: 44, left: 8,
+    position: 'absolute',
+    bottom: 116 - 22,
+    left: 8,
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 7, paddingVertical: 3, borderRadius: 99, borderWidth: 1,
   },
   typeTxt: { fontSize: 9, fontWeight: '700' },
 
-  rBody:  { paddingHorizontal: 10, paddingTop: 8, paddingBottom: 10, gap: 5 },
-  rTitle: { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.92)', textAlign: 'right', lineHeight: 18 },
-  rMeta:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  mRow:   { flexDirection: 'row', alignItems: 'center', gap: 3, flex: 1 },
-  mRowRight: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  mTxt:   { fontSize: 9.5, fontWeight: '500', color: 'rgba(207,207,207,0.58)' },
+  rBody:     { paddingHorizontal: 10, paddingTop: 20, paddingBottom: 10, gap: 5 },
+  rTitle:    { fontSize: 12.5, fontWeight: '700', color: 'rgba(255,255,255,0.92)', textAlign: 'right', lineHeight: 18 },
+  rMeta:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mRow:      { flexDirection: 'row', alignItems: 'center', gap: 3, flex: 1, marginRight: 6 },
+  mRowRight: { flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 0 },
+  mTxt:      { fontSize: 9.5, fontWeight: '500', color: 'rgba(207,207,207,0.55)' },
 
   // Empty state
   emptyWrap: {
@@ -871,4 +910,14 @@ const s = StyleSheet.create({
     shadowColor: D.primary, shadowOpacity: 0.40, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
   },
   emptyBtnTxt: { fontSize: 14, fontWeight: '700', color: D.bg },
+
+  errWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingVertical: 12,
+    marginHorizontal: 20, marginTop: 12,
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.18)',
+  },
+  errTxt: { flex: 1, fontSize: 13, color: 'rgba(239,68,68,0.80)', textAlign: 'right' },
+  errRetry: { fontSize: 13, fontWeight: '700', color: '#EF4444' },
 });
