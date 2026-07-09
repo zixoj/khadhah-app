@@ -66,15 +66,13 @@ export default function MyListingsScreen() {
         .eq('user_id', profile.id)
         .order('created_at', { ascending: false });
       if (data) setListings(data);
-    } catch (e) {
-      console.error('[my-listings] fetchListings:', e);
+    } catch (_) {
     } finally {
       setLoading(false);
     }
   };
 
   const confirmDelete = (id: string) => {
-    console.log('DELETE CLICKED', id);
     setConfirmId(id);
     setDeleteError(null);
     setDeleteSuccess(false);
@@ -83,7 +81,6 @@ export default function MyListingsScreen() {
   const handleDelete = async () => {
     if (!confirmId) return;
     const idToDelete = confirmId;
-    console.log('CONFIRMED DELETE', idToDelete);
     setDeletingId(idToDelete);
     setDeleteError(null);
 
@@ -95,20 +92,16 @@ export default function MyListingsScreen() {
       .select('id');
 
     if (error) {
-      console.error('[delete listing] error:', error);
       setDeleteError('تعذر حذف الإعلان');
       setDeletingId(null);
       return;
     }
 
     if (!deleted || deleted.length === 0) {
-      console.warn('[delete listing] no rows deleted — RLS may be blocking or id mismatch');
       setDeleteError('تعذر حذف الإعلان');
       setDeletingId(null);
       return;
     }
-
-    console.log('DELETE SUCCESS', idToDelete);
     if (profile?.id) {
       supabase.from('activity_log').insert({
         user_id: profile.id,
@@ -164,12 +157,24 @@ export default function MyListingsScreen() {
             </View>
           </View>
 
+          {/* Status row */}
+          {item.status !== 'available' && (
+            <View style={[styles.statusPill, {
+              backgroundColor: item.status === 'taken'
+                ? (isDark ? 'rgba(100,116,139,0.18)' : '#F1F5F9')
+                : (isDark ? 'rgba(245,158,11,0.15)' : '#FFFBEB'),
+            }]}>
+              <Text style={[styles.statusPillText, {
+                color: item.status === 'taken' ? C.textSecondary : '#F59E0B',
+              }]}>
+                {item.status === 'taken' ? 'مأخوذ' : item.status === 'reserved' ? 'محجوز' : 'محجوز مؤقتاً'}
+              </Text>
+            </View>
+          )}
+
           {/* Delete button — standalone Pressable, no nesting issues */}
           <Pressable
-            onPress={() => {
-              console.log('DELETE CLICKED', item.id);
-              confirmDelete(item.id);
-            }}
+            onPress={() => confirmDelete(item.id)}
             style={({ pressed }) => [
               styles.deleteBtn,
               {
@@ -338,6 +343,8 @@ const styles = StyleSheet.create({
   cardMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   typePill: { borderRadius: BorderRadius.full, paddingHorizontal: 6, paddingVertical: 2 },
   typePillText: { fontSize: FontSizes.xs, fontWeight: '700' },
+  statusPill: { borderRadius: BorderRadius.full, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-end' },
+  statusPillText: { fontSize: FontSizes.xs, fontWeight: '700' },
   viewsRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   viewsText: { fontSize: FontSizes.xs },
   deleteBtn: {

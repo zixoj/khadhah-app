@@ -114,7 +114,7 @@ export default function FreeScreen() {
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    tickRef.current = setInterval(() => setTick((t) => t + 1), 30000);
+    tickRef.current = setInterval(() => setTick((t) => t + 1), 1000);
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
   }, []);
 
@@ -320,7 +320,7 @@ export default function FreeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: isDark ? colors.cardBorder : '#E8EDF2', borderBottomWidth: 1 }]}>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: isDark ? colors.cardBorder : '#E8EDF2', borderBottomWidth: 1, paddingTop: Math.max(insets.top, 16) + 8 }]}>
         <View style={styles.headerContent}>
           <Gift size={22} color={colors.primary} />
           <Text style={[styles.headerTitle, { color: colors.text }]}>خذه</Text>
@@ -409,7 +409,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: 48,
     paddingBottom: Spacing.lg,
   },
   headerContent: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, justifyContent: 'flex-end' },

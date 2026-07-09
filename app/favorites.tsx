@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,18 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import { ChevronLeft, Heart, MapPin, Trash2 } from 'lucide-react-native';
+
+const CATEGORY_LABEL: Record<string, string> = {
+  electronics: 'إلكترونيات', clothing: 'ملابس', furniture: 'أثاث',
+  books: 'كتب', toys: 'ألعاب', home_tools: 'أدوات منزلية',
+  cars: 'سيارات', sports: 'رياضة', animals: 'حيوانات', other: 'أخرى',
+};
 
 interface FavoriteListing {
   id: string;
@@ -36,25 +43,23 @@ export default function FavoritesScreen() {
   const [favorites, setFavorites] = useState<FavoriteListing[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchFavorites();
+  const fetchFavorites = useCallback(async () => {
+    if (!profile?.id) { setLoading(false); return; }
+    const { data } = await supabase
+      .from('favorites')
+      .select('id, listing_id, listings(id, title, type, category, city, image_url)')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false });
+    if (data) setFavorites(data as any);
+    setLoading(false);
   }, [profile?.id]);
 
-  const fetchFavorites = async () => {
-    if (!profile?.id) { setLoading(false); return; }
-    try {
-      const { data } = await supabase
-        .from('favorites')
-        .select('id, listing_id, listings(id, title, type, category, city, image_url)')
-        .eq('user_id', profile.id)
-        .order('created_at', { ascending: false });
-      if (data) setFavorites(data as any);
-    } catch (e) {
-      console.error('[favorites] fetchFavorites:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchFavorites();
+    }, [fetchFavorites])
+  );
 
   const removeFavorite = async (favId: string) => {
     await supabase.from('favorites').delete().eq('id', favId);
@@ -95,7 +100,7 @@ export default function FavoritesScreen() {
               }]}>
                 <Text style={[styles.catPillText, {
                   color: isExchange ? C.exchange : C.free,
-                }]}>{listing.category}</Text>
+                }]}>{CATEGORY_LABEL[listing.category] ?? listing.category}</Text>
               </View>
             ) : null}
             {listing.city ? (

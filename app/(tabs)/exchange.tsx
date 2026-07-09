@@ -260,7 +260,7 @@ export default function ExchangeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: isDark ? colors.cardBorder : '#E8EDF2', borderBottomWidth: 1 }]}>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: isDark ? colors.cardBorder : '#E8EDF2', borderBottomWidth: 1, paddingTop: Math.max(insets.top, 16) + 8 }]}>
         <View style={styles.headerContent}>
           <ArrowLeftRight size={22} color={colors.exchange} />
           <Text style={[styles.headerTitle, { color: colors.text }]}>بدّل</Text>
@@ -434,7 +434,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: 48,
     paddingBottom: Spacing.lg,
   },
   headerContent: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, justifyContent: 'flex-end' },

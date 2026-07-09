@@ -7,7 +7,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Search, X, SlidersHorizontal, ArrowLeftRight, Gift,
-  MapPin, Clock, Flame, ChevronLeft, ArrowUpDown,
+  MapPin, Clock, Flame, ChevronLeft,
 } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/ThemeContext';
@@ -236,8 +236,8 @@ export default function SearchScreen() {
     );
   };
 
-  // ── Filter Panel ────────────────────────────────────────────────────────────
-  const FilterPanel = () => (
+  // ── Render ─────────────────────────────────────────────────────────────────
+  const filterPanel = showFilters ? (
     <View style={[styles.filterPanel, { backgroundColor: C.surface, borderBottomColor: isDark ? C.border : '#E8EDF2' }]}>
       {/* Type */}
       <View style={styles.filterGroup}>
@@ -330,9 +330,8 @@ export default function SearchScreen() {
         </TouchableOpacity>
       )}
     </View>
-  );
+  ) : null;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.root, { backgroundColor: C.background, paddingTop: insets.top }]}>
       {/* Header */}
@@ -382,7 +381,7 @@ export default function SearchScreen() {
       </View>
 
       {/* Filter panel */}
-      {showFilters && <FilterPanel />}
+      {filterPanel}
 
       {/* Results */}
       {loading ? (
