@@ -92,6 +92,10 @@ export default function AddPostScreen() {
 
   const successScale = useRef(new Animated.Value(0.7)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
+  const isSubmittingRef = useRef(false);
+
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [createdListingId, setCreatedListingId] = useState<string | null>(null);
 
   const isLoading = step === 'uploading' || step === 'saving';
   const isSubmitDisabled = isLoading || authLoading || !profile?.id;
@@ -215,8 +219,8 @@ export default function AddPostScreen() {
       });
 
     if (uploadError) {
-      // Re-throw with FULL raw message so it surfaces on screen unfiltered
-      throw uploadError;
+      console.error('[uploadImage] storage error:', uploadError.message);
+      throw new Error('upload_failed');
     }
 
     const uploadedPath = data?.path ?? null;
@@ -232,6 +236,7 @@ export default function AddPostScreen() {
   };
 
   const handleSubmit = async () => {
+    if (isSubmittingRef.current) return;
     setError(null);
 
     // ── Auth guard ──────────────────────────────────────────────────────────
@@ -254,31 +259,30 @@ export default function AddPostScreen() {
     if (!city) { setError('الرجاء اختيار المدينة'); return; }
     if (!phone.trim()) { setError('الرجاء إدخال رقم الهاتف'); return; }
 
-    // --- Step 1: Upload all images first, sequentially (avoids race conditions) ---
+    isSubmittingRef.current = true;
+
+    // --- Step 1: Upload all images first, sequentially ---
     type UploadedImage = { publicUrl: string; storagePath: string };
     const uploaded: UploadedImage[] = [];
 
     if (images.length > 0) {
       setStep('uploading');
-      // Snapshot so user cannot mutate list while uploading (isLoading=true disables UI)
       const snapshot = [...images];
+      setUploadProgress({ current: 0, total: snapshot.length });
       for (let i = 0; i < snapshot.length; i++) {
+        setUploadProgress({ current: i + 1, total: snapshot.length });
         try {
           const result = await uploadImage(snapshot[i]);
           uploaded.push(result);
         } catch (err: any) {
           setStep('idle');
-          // Show the REAL error unfiltered so the cause is visible
-          const msg: string =
-            err?.message ||
-            err?.error ||
-            err?.details ||
-            JSON.stringify(err) ||
-            'فشل رفع الصورة';
-          setError('خطأ رفع الصورة: ' + msg);
+          setUploadProgress(null);
+          isSubmittingRef.current = false;
+          setError('فشل رفع الصورة ' + (i + 1) + ' من ' + snapshot.length + '. حاول مرة أخرى.');
           return;
         }
       }
+      setUploadProgress(null);
     }
 
     // --- Step 2: Create the listing record ---
@@ -300,19 +304,22 @@ export default function AddPostScreen() {
 
     if (rpcError) {
       setStep('idle');
+      isSubmittingRef.current = false;
       setError(rpcError.message || 'حدث خطأ أثناء النشر');
       return;
     }
 
     if (!data?.success) {
       setStep('idle');
+      isSubmittingRef.current = false;
       setError(RPC_ERRORS[data?.reason as string] || 'حدث خطأ أثناء النشر');
       return;
     }
 
     const listingId: string | null = data?.listing_id ?? null;
+    setCreatedListingId(listingId);
 
-    // --- Step 3: Insert all images into post_images (including primary at sort_order=0) ---
+    // --- Step 3: Insert all images into post_images ---
     if (uploaded.length > 0 && listingId) {
       const rows = uploaded.map((img, idx) => ({
         post_id: listingId,
@@ -326,6 +333,7 @@ export default function AddPostScreen() {
       }
     }
 
+    isSubmittingRef.current = false;
     setStep('success');
     Animated.parallel([
       Animated.spring(successScale, { toValue: 1, useNativeDriver: true, tension: 60, friction: 9 }),
@@ -338,7 +346,28 @@ export default function AddPostScreen() {
   };
 
   const handleViewListing = () => {
-    router.replace('/(tabs)/');
+    if (createdListingId) {
+      router.replace(`/post-detail?id=${createdListingId}` as any);
+    } else {
+      router.replace('/(tabs)/');
+    }
+  };
+
+  const handleAddAnother = () => {
+    setPostType(typeParam === 'free' ? 'free' : 'exchange');
+    setCategory('');
+    setTitle('');
+    setDescription('');
+    setCity('');
+    setPhone(profile?.phone || '');
+    setDeliveryMethod('direct_contact');
+    setImages([]);
+    setIsUrgent(false);
+    setError(null);
+    setCreatedListingId(null);
+    successScale.setValue(0.7);
+    successOpacity.setValue(0);
+    setStep('idle');
   };
 
   // ── Success screen ────────────────────────────────────────────────────────
@@ -367,14 +396,14 @@ export default function AddPostScreen() {
           </View>
           <TouchableOpacity
             style={[styles.doneBtn, { backgroundColor: C.primary, shadowColor: C.primary }]}
-            onPress={handleDone}
+            onPress={handleViewListing}
             activeOpacity={0.85}
           >
-            <Text style={styles.doneBtnText}>العودة للرئيسية</Text>
+            <Text style={styles.doneBtnText}>عرض الإعلان</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.viewBtn, { borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E0E0E0' }]}
-            onPress={handleViewListing}
+            onPress={handleAddAnother}
             activeOpacity={0.8}
           >
             <Text style={[styles.viewBtnText, { color: C.textSecondary }]}>إضافة إعلان آخر</Text>
@@ -658,7 +687,11 @@ export default function AddPostScreen() {
             <View style={styles.loadingRow}>
               <ActivityIndicator color="#000" size="small" />
               <Text style={styles.submitBtnText}>
-                {step === 'uploading' ? 'جاري رفع الصور...' : 'جاري النشر...'}
+                {step === 'uploading'
+                  ? uploadProgress
+                    ? `جاري رفع الصورة ${uploadProgress.current} من ${uploadProgress.total}`
+                    : 'جاري رفع الصور...'
+                  : 'جاري النشر...'}
               </Text>
             </View>
           ) : (
