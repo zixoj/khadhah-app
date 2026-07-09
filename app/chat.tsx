@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowRight, Send } from 'lucide-react-native';
+import { ArrowRight, Send, RotateCcw, MessageCircle } from 'lucide-react-native';
 import { useTheme } from '@/lib/ThemeContext';
 import { Spacing, BorderRadius, FontSizes } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
+
+const MAX_MESSAGE_LENGTH = 1000;
 
 interface Message {
   id: string;
@@ -23,7 +25,10 @@ interface Message {
   sender_id: string;
   content: string;
   created_at: string;
-  pending?: boolean; // optimistic flag
+  pending?: boolean;
+  failed?: boolean;
+  // When failed, preserve original text for retry
+  _retryText?: string;
 }
 
 interface ChatRoom {
@@ -32,6 +37,22 @@ interface ChatRoom {
   owner_id: string;
   other_user_id: string;
   listing_title?: string;
+}
+
+// Merges two message arrays: deduplicates by id, sorts by created_at ascending.
+function mergeMessages(existing: Message[], incoming: Message[]): Message[] {
+  const map = new Map<string, Message>();
+  for (const m of existing) map.set(m.id, m);
+  for (const m of incoming) {
+    // Prefer non-pending/non-failed version if IDs match
+    const prev = map.get(m.id);
+    if (!prev || (prev.pending && !m.pending) || (prev.failed && !m.failed)) {
+      map.set(m.id, m);
+    }
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
 }
 
 export default function ChatScreen() {
@@ -51,8 +72,11 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track temp IDs that we've already inserted optimistically
-  const pendingIds = useRef<Set<string>>(new Set());
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Maps tempId → real confirmed id to prevent realtime duplicates
+  const tempToRealId = useRef<Map<string, string>>(new Map());
+  // Set of real IDs we've already confirmed so realtime doesn't re-add them
+  const confirmedIds = useRef<Set<string>>(new Set());
 
   const scrollToBottom = useCallback((animated = true) => {
     if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
@@ -62,6 +86,12 @@ export default function ChatScreen() {
     }, 50);
   }, []);
 
+  const showError = useCallback((msg: string) => {
+    setError(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    errorTimerRef.current = setTimeout(() => setError(''), 4000);
+  }, []);
+
   const fetchMessages = useCallback(async (roomId: string) => {
     const { data, error: err } = await supabase
       .from('chat_messages')
@@ -69,17 +99,17 @@ export default function ChatScreen() {
       .eq('room_id', roomId)
       .order('created_at', { ascending: true });
     if (!err && data) {
-      setMessages(data);
+      setMessages((prev) => mergeMessages(prev, data as Message[]));
       scrollToBottom(false);
     }
   }, [scrollToBottom]);
 
   useEffect(() => {
-    if (!room) { setError('غرفة الدردشة غير موجودة'); setLoading(false); return; }
+    if (!room) { showError('غرفة الدردشة غير موجودة'); setLoading(false); return; }
 
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setError('يجب تسجيل الدخول أولاً'); setLoading(false); return; }
+      if (!user) { showError('يجب تسجيل الدخول أولاً'); setLoading(false); return; }
       setMyId(user.id);
 
       const { data: roomData, error: roomErr } = await supabase
@@ -88,7 +118,7 @@ export default function ChatScreen() {
         .eq('id', room)
         .maybeSingle();
       if (roomErr || !roomData) {
-        setError('لا يمكن الوصول إلى هذه المحادثة');
+        showError('لا يمكن الوصول إلى هذه المحادثة');
         setLoading(false);
         return;
       }
@@ -103,7 +133,6 @@ export default function ChatScreen() {
       await fetchMessages(room);
       setLoading(false);
 
-      // Subscribe to new messages from the OTHER user (our own arrive via optimistic update)
       channelRef.current = supabase
         .channel(`chat_room_${room}`)
         .on(
@@ -116,19 +145,10 @@ export default function ChatScreen() {
           },
           (payload) => {
             const msg = payload.new as Message;
-            setMessages((prev) => {
-              // If this is our own confirmed message, replace the pending optimistic one
-              if (pendingIds.current.has(msg.id)) {
-                pendingIds.current.delete(msg.id);
-                return prev.map((m) =>
-                  m.id === msg.id ? { ...msg, pending: false } : m
-                );
-              }
-              // Skip if already present (duplicate safety)
-              if (prev.find((m) => m.id === msg.id)) return prev;
-              // Message from the other participant — append it
-              return [...prev, msg];
-            });
+            // Skip if we already handled this confirmed ID
+            if (confirmedIds.current.has(msg.id)) return;
+            confirmedIds.current.add(msg.id);
+            setMessages((prev) => mergeMessages(prev, [{ ...msg, pending: false }]));
             scrollToBottom(true);
           }
         )
@@ -139,31 +159,35 @@ export default function ChatScreen() {
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current);
       if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     };
-  }, [room, fetchMessages, scrollToBottom]);
+  }, [room, fetchMessages, scrollToBottom, showError]);
 
-  const sendMessage = async () => {
-    const text = newMessage.trim();
-    if (!text || !room || !myId || sending) return;
-
-    // 1. Clear input immediately
-    setNewMessage('');
+  const doSend = useCallback(async (text: string, replaceTempId?: string) => {
+    if (!text || !room || !myId) return;
     setSending(true);
 
-    // 2. Add optimistic message with a temp ID
-    const tempId = `temp_${Date.now()}`;
-    const optimistic: Message = {
-      id: tempId,
-      room_id: room,
-      sender_id: myId,
-      content: text,
-      created_at: new Date().toISOString(),
-      pending: true,
-    };
-    setMessages((prev) => [...prev, optimistic]);
-    scrollToBottom(true);
+    const tempId = replaceTempId ?? `temp_${Date.now()}_${Math.random()}`;
 
-    // 3. Persist to Supabase
+    if (!replaceTempId) {
+      // New optimistic message
+      const optimistic: Message = {
+        id: tempId,
+        room_id: room,
+        sender_id: myId,
+        content: text,
+        created_at: new Date().toISOString(),
+        pending: true,
+      };
+      setMessages((prev) => mergeMessages(prev, [optimistic]));
+      scrollToBottom(true);
+    } else {
+      // Retry: reset failed state back to pending
+      setMessages((prev) =>
+        prev.map((m) => m.id === replaceTempId ? { ...m, pending: true, failed: false } : m)
+      );
+    }
+
     const { data: inserted, error: sendErr } = await supabase
       .from('chat_messages')
       .insert({ room_id: room, sender_id: myId, content: text })
@@ -173,21 +197,40 @@ export default function ChatScreen() {
     setSending(false);
 
     if (sendErr || !inserted) {
-      // Revert optimistic message and restore input
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setNewMessage(text);
-      setError('فشل إرسال الرسالة، حاول مرة أخرى');
+      // Mark the optimistic message as failed instead of removing it
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId ? { ...m, pending: false, failed: true, _retryText: text } : m
+        )
+      );
+      showError('فشل إرسال الرسالة، اضغط على الرسالة للإعادة');
       return;
     }
 
-    // 4. Replace temp message with confirmed one
-    // Register the real ID so the realtime event doesn't add it again
-    pendingIds.current.add(inserted.id);
+    // Register real ID so realtime doesn't duplicate it
+    confirmedIds.current.add(inserted.id);
+    tempToRealId.current.set(tempId, inserted.id);
+
+    // Replace temp message with confirmed one
     setMessages((prev) =>
-      prev.map((m) => (m.id === tempId ? { ...inserted, pending: false } : m))
+      prev
+        .map((m) => (m.id === tempId ? { ...inserted, pending: false, failed: false } : m))
+        .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i) // safety dedup
     );
     scrollToBottom(true);
-  };
+  }, [room, myId, scrollToBottom, showError]);
+
+  const sendMessage = useCallback(async () => {
+    const text = newMessage.trim();
+    if (!text || sending) return;
+    setNewMessage('');
+    await doSend(text);
+  }, [newMessage, sending, doSend]);
+
+  const retryMessage = useCallback((msg: Message) => {
+    if (!msg.failed || !msg._retryText) return;
+    doSend(msg._retryText, msg.id);
+  }, [doSend]);
 
   const formatTime = (iso: string) =>
     new Date(iso).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
@@ -196,14 +239,20 @@ export default function ChatScreen() {
     const isMine = item.sender_id === myId;
     return (
       <View style={[styles.msgRow, isMine ? styles.msgRowMine : styles.msgRowOther]}>
-        <View
+        <TouchableOpacity
+          activeOpacity={item.failed ? 0.7 : 1}
+          onPress={() => item.failed && retryMessage(item)}
           style={[
             styles.bubble,
             isMine
               ? {
-                  backgroundColor: isDark ? `${C.primary}22` : C.primary,
-                  borderColor: isDark ? C.primary : 'transparent',
-                  borderWidth: isDark ? 1 : 0,
+                  backgroundColor: item.failed
+                    ? (isDark ? 'rgba(239,68,68,0.15)' : '#FFF0F0')
+                    : (isDark ? `${C.primary}22` : C.primary),
+                  borderColor: item.failed
+                    ? 'rgba(239,68,68,0.4)'
+                    : (isDark ? C.primary : 'transparent'),
+                  borderWidth: (isDark || item.failed) ? 1 : 0,
                   opacity: item.pending ? 0.6 : 1,
                 }
               : {
@@ -214,18 +263,35 @@ export default function ChatScreen() {
             isMine ? styles.bubbleMine : styles.bubbleOther,
           ]}
         >
-          <Text style={[styles.bubbleText, { color: isMine ? (isDark ? C.primary : '#fff') : C.text }]}>
+          <Text style={[
+            styles.bubbleText,
+            {
+              color: isMine
+                ? (item.failed ? '#EF4444' : (isDark ? C.primary : '#fff'))
+                : C.text,
+            },
+          ]}>
             {item.content}
           </Text>
           <View style={styles.msgMeta}>
             {item.pending && (
-              <ActivityIndicator size={10} color={isDark ? C.primary : 'rgba(255,255,255,0.7)'} style={{ marginLeft: 4 }} />
+              <ActivityIndicator size={10} color={isDark ? C.primary : 'rgba(255,255,255,0.7)'} />
             )}
-            <Text style={[styles.msgTime, { color: isMine ? (isDark ? `${C.primary}88` : 'rgba(255,255,255,0.7)') : C.textMuted }]}>
-              {formatTime(item.created_at)}
+            {item.failed && (
+              <RotateCcw size={11} color="#EF4444" />
+            )}
+            <Text style={[
+              styles.msgTime,
+              {
+                color: isMine
+                  ? (item.failed ? 'rgba(239,68,68,0.6)' : (isDark ? `${C.primary}88` : 'rgba(255,255,255,0.7)'))
+                  : C.textMuted,
+              },
+            ]}>
+              {item.failed ? 'فشل — اضغط للإعادة' : formatTime(item.created_at)}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -284,7 +350,7 @@ export default function ChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        {/* Error banner (non-blocking) */}
+        {/* Error banner — auto-dismisses after 4 seconds */}
         {!!error && (
           <View style={[styles.errorBanner, { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FFF5F5', borderColor: 'rgba(239,68,68,0.3)' }]}>
             <Text style={{ color: '#EF4444', fontSize: FontSizes.sm, textAlign: 'center' }}>{error}</Text>
@@ -299,10 +365,15 @@ export default function ChatScreen() {
           contentContainerStyle={[styles.msgList, { backgroundColor: C.background }]}
           ListEmptyComponent={
             <View style={styles.emptyChat}>
-              <Text style={[styles.emptyChatText, { color: C.textMuted }]}>ابدأ المحادثة الآن</Text>
+              <View style={[styles.emptyIconWrap, { backgroundColor: isDark ? C.card : '#F4F7FA' }]}>
+                <MessageCircle size={36} color={C.textMuted} />
+              </View>
+              <Text style={[styles.emptyChatTitle, { color: C.text }]}>بداية المحادثة</Text>
+              <Text style={[styles.emptyChatText, { color: C.textMuted }]}>
+                لا توجد رسائل بعد. أرسل أول رسالة لبدء التواصل مع الطرف الآخر.
+              </Text>
             </View>
           }
-          // Scroll to bottom whenever new content is added
           onContentSizeChange={() => scrollToBottom(false)}
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
         />
@@ -339,6 +410,7 @@ export default function ChatScreen() {
             onChangeText={(t) => { setNewMessage(t); if (error) setError(''); }}
             multiline
             textAlign="right"
+            maxLength={MAX_MESSAGE_LENGTH}
           />
         </View>
       </KeyboardAvoidingView>
@@ -386,8 +458,10 @@ const styles = StyleSheet.create({
   msgMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 3, gap: 4 },
   msgTime: { fontSize: FontSizes.xs },
 
-  emptyChat: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyChatText: { fontSize: FontSizes.md },
+  emptyChat: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: Spacing.xl, gap: Spacing.sm },
+  emptyIconWrap: { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+  emptyChatTitle: { fontSize: FontSizes.lg, fontWeight: '700', textAlign: 'center' },
+  emptyChatText: { fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 22 },
 
   inputRow: {
     flexDirection: 'row',
