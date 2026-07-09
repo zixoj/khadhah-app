@@ -63,17 +63,29 @@ export default function WalletScreen() {
   const handleTopUp = async (amount: number) => {
     if (!profile?.id) return;
     setTopping(true);
-    // Credit top-up: update balance + insert credit tx (both allowed by RLS for positive credits)
     const newBalance = balance + amount;
-    await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', profile?.id ?? '');
-    await supabase.from('wallet_transactions').insert({
-      user_id: profile?.id ?? '',
+    const { error: balanceErr } = await supabase
+      .from('profiles')
+      .update({ wallet_balance: newBalance })
+      .eq('id', profile.id);
+    if (balanceErr) {
+      setTopping(false);
+      Alert.alert('خطأ', 'فشل تحديث الرصيد. حاول مرة أخرى');
+      return;
+    }
+    const { error: txErr } = await supabase.from('wallet_transactions').insert({
+      user_id: profile.id,
       amount,
       type: 'credit',
       description: `إضافة رصيد ${amount} ر.س`,
     });
+    if (txErr) {
+      setTopping(false);
+      Alert.alert('خطأ', 'فشل تسجيل المعاملة');
+      return;
+    }
     await supabase.from('activity_log').insert({
-      user_id: profile?.id ?? '',
+      user_id: profile.id,
       action: 'wallet_topup',
       description: `تم إضافة ${amount} ر.س إلى المحفظة`,
     });

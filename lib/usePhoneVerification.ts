@@ -59,10 +59,16 @@ export function usePhoneVerification() {
       setStep('error');
       return false;
     }
+    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
+    if (!verifiedUser) {
+      setErrorMsg('خطأ في جلسة المستخدم');
+      setStep('error');
+      return false;
+    }
     await supabase
       .from('profiles')
       .update({ phone_verified: true, phone_verified_at: new Date().toISOString() })
-      .eq('id', (await supabase.auth.getUser()).data.user?.id ?? '');
+      .eq('id', verifiedUser.id);
     setStep('done');
     return true;
   };
