@@ -2,7 +2,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '@/lib/auth';
 import { View, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, ArrowLeftRight, Gift, MessageCircle, MoreHorizontal } from 'lucide-react-native';
+import { Home, ArrowLeftRight, Gift, User, MoreHorizontal } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
 
 const PRIMARY   = '#22C55E';
@@ -111,7 +111,7 @@ export default function TabLayout() {
       <Tabs.Screen name="deliveries" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon Icon={MessageCircle} label="رسائلي" focused={focused} /> }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon Icon={User} label="حسابي" focused={focused} /> }}
       />
       <Tabs.Screen
         name="more"

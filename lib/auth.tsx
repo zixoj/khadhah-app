@@ -21,11 +21,7 @@ function normalizeSaudiPhone(input: string): string | null {
   if (/^5\d{8}$/.test(digits)) {
     return '+966' + digits;
   }
-  // +9665XXXXXXXX (12 digits)
-  if (/^9665\d{8}$/.test(digits)) {
-    return '+' + digits;
-  }
-  // 9665XXXXXXXX (11 digits)
+  // +9665XXXXXXXX or 9665XXXXXXXX (12 digits)
   if (/^9665\d{8}$/.test(digits)) {
     return '+' + digits;
   }

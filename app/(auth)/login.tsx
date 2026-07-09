@@ -597,7 +597,7 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               style={styles.secondaryBtn}
-              onPress={() => router.push('/register')}
+              onPress={() => router.push('/(auth)/register')}
               activeOpacity={0.82}
             >
               <Text style={styles.secondaryBtnText}>{t('createAccount')}</Text>

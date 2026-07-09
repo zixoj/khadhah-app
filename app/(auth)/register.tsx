@@ -336,7 +336,7 @@ export default function RegisterScreen() {
 
             <View style={styles.footerRow}>
               <Text style={styles.footerText}>لديك حساب؟</Text>
-              <TouchableOpacity onPress={() => router.replace('/login')} activeOpacity={0.8}>
+              <TouchableOpacity onPress={() => router.replace('/(auth)/login')} activeOpacity={0.8}>
                 <Text style={styles.footerLink}>تسجيل الدخول</Text>
               </TouchableOpacity>
             </View>
