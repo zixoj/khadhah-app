@@ -273,7 +273,7 @@ function ActionCard({
         <Image source={{ uri: imageUri }} style={s.acImg} resizeMode="cover" />
         {/* Gradient: solid at top → transparent → let image show */}
         <LinearGradient
-          colors={[gradTop, `${gradTop.slice(0, -4)}55)`, 'transparent']}
+          colors={[gradTop, gradTop.replace(/[\d.]+\)$/, '0.33)'), 'transparent']}
           style={s.acGradTop}
           pointerEvents="none"
         />

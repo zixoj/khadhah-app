@@ -136,20 +136,11 @@ export default function AddPostScreen() {
         exif: false,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        console.log('[ImagePicker] selected assets:', result.assets.map((a) => ({
-          uri: a.uri.slice(0, 80),
-          mimeType: a.mimeType,
-          fileSize: a.fileSize,
-          width: a.width,
-          height: a.height,
-        })));
-
         const valid: PickedImage[] = [];
         for (const a of result.assets) {
           if (!a.uri) continue;
           const mime = resolveMime(a);
           if (!SUPPORTED_MIME.includes(mime)) {
-            console.warn('[ImagePicker] unsupported mime, skipping:', mime);
             continue;
           }
           if (a.fileSize && a.fileSize > MAX_FILE_BYTES) {
@@ -164,7 +155,6 @@ export default function AddPostScreen() {
         }
       }
     } catch (err) {
-      console.error('[ImagePicker] error:', err);
       setError('فشل فتح معرض الصور، حاول مرة أخرى');
     }
   };
@@ -180,7 +170,6 @@ export default function AddPostScreen() {
   ): Promise<{ publicUrl: string; storagePath: string }> => {
     // ── 1. Verify live auth session ─────────────────────────────────────────
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    console.log('[Upload] auth.getUser ->', user?.id ?? 'NO USER', userError?.message ?? '');
     if (userError || !user) {
       throw new Error('المستخدم غير مسجّل الدخول — ' + (userError?.message ?? 'no session'));
     }
@@ -192,14 +181,6 @@ export default function AddPostScreen() {
     // foldername(name)[1] in the INSERT policy checks the FIRST segment = user.id
     const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    console.log('[Upload] ── DIAGNOSTIC ──');
-    console.log('[Upload] uri       :', img.uri);
-    console.log('[Upload] mimeType  :', img.mimeType, '→ effective:', effectiveMime);
-    console.log('[Upload] fileSize  :', img.fileSize ?? 'unknown');
-    console.log('[Upload] userId    :', user.id);
-    console.log('[Upload] bucket    : ads-images');
-    console.log('[Upload] filePath  :', filePath);
-
     // ── 3. Read image bytes ─────────────────────────────────────────────────
     let uploadBody: Blob | Uint8Array;
     if (Platform.OS === 'web') {
@@ -208,7 +189,6 @@ export default function AddPostScreen() {
       const res = await fetch(img.uri);
       if (!res.ok) throw new Error(`fetch failed: HTTP ${res.status}`);
       const blob = await res.blob();
-      console.log('[Upload] blob size:', blob.size, 'type:', blob.type);
       if (blob.size === 0) throw new Error('الصورة فارغة');
       if (blob.size > MAX_FILE_BYTES) throw new Error('حجم الصورة أكبر من 5 ميغابايت');
       uploadBody = blob.type ? blob : new Blob([blob], { type: effectiveMime });
@@ -219,7 +199,6 @@ export default function AddPostScreen() {
       const res = await fetch(img.uri);
       if (!res.ok) throw new Error(`fetch failed: HTTP ${res.status}`);
       const blob = await res.blob();
-      console.log('[Upload] blob size:', blob.size, 'type:', blob.type);
       if (blob.size === 0) throw new Error('الصورة فارغة');
       if (blob.size > MAX_FILE_BYTES) throw new Error('حجم الصورة أكبر من 5 ميغابايت');
       const ab = await blob.arrayBuffer();
@@ -227,7 +206,6 @@ export default function AddPostScreen() {
     }
 
     // ── 4. Upload to Supabase Storage ───────────────────────────────────────
-    console.log('[Upload] calling supabase.storage.upload ...');
     const { data, error: uploadError } = await supabase.storage
       .from('ads-images')
       .upload(filePath, uploadBody, {
@@ -237,19 +215,12 @@ export default function AddPostScreen() {
       });
 
     if (uploadError) {
-      console.error('[Upload] ── UPLOAD ERROR ──');
-      console.error('[Upload] message :', uploadError.message);
-      console.error('[Upload] status  :', (uploadError as any).status);
-      console.error('[Upload] error   :', (uploadError as any).error);
-      console.error('[Upload] details :', (uploadError as any).details);
-      console.error('[Upload] full    :', JSON.stringify(uploadError, null, 2));
       // Re-throw with FULL raw message so it surfaces on screen unfiltered
       throw uploadError;
     }
 
     const uploadedPath = data?.path ?? null;
     if (!uploadedPath) {
-      console.error('[Upload] missing path in response:', JSON.stringify(data));
       throw new Error('رفع الصورة نجح لكن لم يُرجع مساراً');
     }
 
@@ -257,8 +228,6 @@ export default function AddPostScreen() {
     const publicUrl = urlData?.publicUrl ?? null;
     if (!publicUrl) throw new Error('فشل الحصول على الرابط العام للصورة');
 
-    console.log('[Upload] ── UPLOAD SUCCESS ──');
-    console.log('[Upload] publicUrl:', publicUrl);
     return { publicUrl, storagePath: uploadedPath };
   };
 
@@ -266,9 +235,7 @@ export default function AddPostScreen() {
     setError(null);
 
     // ── Auth guard ──────────────────────────────────────────────────────────
-    console.log('[AddPost] USER (profile):', profile);
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    console.log('[AddPost] supabase.auth.getUser ->', user?.id ?? 'NO USER', userError?.message ?? '');
     if (userError || !user?.id) {
       setError('جلسة المستخدم غير موجودة، يرجى تسجيل الدخول مجدداً');
       return;
@@ -308,7 +275,6 @@ export default function AddPostScreen() {
             err?.details ||
             JSON.stringify(err) ||
             'فشل رفع الصورة';
-          console.error('[handleSubmit] upload[' + i + '] FAILED:', msg, err);
           setError('خطأ رفع الصورة: ' + msg);
           return;
         }
@@ -331,8 +297,6 @@ export default function AddPostScreen() {
       p_is_urgent: isUrgent,
       p_dual_mode: false,
     });
-
-    console.log('[handleSubmit] create_listing RPC result:', JSON.stringify(data), rpcError);
 
     if (rpcError) {
       setStep('idle');
@@ -358,10 +322,7 @@ export default function AddPostScreen() {
       }));
       const { error: imgInsertError } = await supabase.from('post_images').insert(rows);
       if (imgInsertError) {
-        // Non-fatal: listing was created; log the error but don't block success
-        console.error('[handleSubmit] post_images insert error:', imgInsertError);
-      } else {
-        console.log('[handleSubmit] post_images inserted:', rows.length, 'rows for listing', listingId);
+        console.error('[handleSubmit] post_images insert error:', imgInsertError.message);
       }
     }
 

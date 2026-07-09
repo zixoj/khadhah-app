@@ -71,7 +71,7 @@ export default function ExchangeScreen() {
   const { profile } = useAuth();
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const fabBottom = insets.bottom + 64 + 24;
+  const fabBottom = Math.max(insets.bottom, 6) + 106;
   const [listings, setListings] = useState<Listing[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
 
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md, paddingVertical: 80 },
   emptyText: { fontSize: FontSizes.md },
-  listContent: { paddingHorizontal: Spacing.lg, paddingBottom: 120 },
+  listContent: { paddingHorizontal: Spacing.lg, paddingBottom: 160 },
   row: { gap: Spacing.md, marginBottom: Spacing.md },
 
   postCard: {

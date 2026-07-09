@@ -50,11 +50,16 @@ export default function ChatScreen() {
 
   const flatListRef = useRef<FlatList>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track temp IDs that we've already inserted optimistically
   const pendingIds = useRef<Set<string>>(new Set());
 
   const scrollToBottom = useCallback((animated = true) => {
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated }), 50);
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated });
+      scrollTimerRef.current = null;
+    }, 50);
   }, []);
 
   const fetchMessages = useCallback(async (roomId: string) => {
@@ -133,6 +138,7 @@ export default function ChatScreen() {
     init();
     return () => {
       if (channelRef.current) supabase.removeChannel(channelRef.current);
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
     };
   }, [room, fetchMessages, scrollToBottom]);
 

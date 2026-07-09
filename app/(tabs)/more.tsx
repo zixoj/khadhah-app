@@ -97,8 +97,8 @@ export default function MoreScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      openSheet();
-    }, [])
+      if (!sheetVisible) openSheet();
+    }, [sheetVisible])
   );
 
   const sheetBg = isDark ? '#111714' : '#FFFFFF';

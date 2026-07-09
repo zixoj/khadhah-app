@@ -312,7 +312,7 @@ function MenuItem({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingBottom: 110 },
+  content: { paddingBottom: 160 },
   headerBg: { paddingBottom: Spacing.lg },
   headerTop: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.md },
   headerTitle: { fontSize: FontSizes.xl, fontWeight: '700', textAlign: 'right' },
