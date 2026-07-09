@@ -267,8 +267,11 @@ export default function PostDetailScreen() {
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [myChatRoomId, setMyChatRoomId] = useState<string | null>(null);
   const [openingChat, setOpeningChat] = useState(false);
+  const [chatError, setChatError] = useState('');
 
   const [fullscreenImg, setFullscreenImg] = useState<string | null>(null);
+
+  const chatErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const C = colors;
 
@@ -305,9 +308,13 @@ export default function PostDetailScreen() {
         .eq('listing_id', id).eq('requester_id', profile.id).in('status', ['pending', 'confirmed']).maybeSingle();
       if (myRes) setMyReservation(myRes);
 
-      const { data: room } = await supabase
-        .from('chat_rooms').select('id')
-        .eq('listing_id', id).or(`owner_id.eq.${profile.id},other_user_id.eq.${profile.id}`).maybeSingle();
+      // For the buyer: only one room per (listing, buyer) pair.
+      // For the owner: find any room where they are the owner (first one, for backward compat).
+      const isListingOwner = profile.id === data.user_id;
+      const roomQuery = isListingOwner
+        ? supabase.from('chat_rooms').select('id').eq('listing_id', id).eq('owner_id', profile.id)
+        : supabase.from('chat_rooms').select('id').eq('listing_id', id).eq('other_user_id', profile.id);
+      const { data: room } = await roomQuery.maybeSingle();
       if (room) setMyChatRoomId(room.id);
 
       const { data: report } = await supabase
@@ -333,6 +340,10 @@ export default function PostDetailScreen() {
   }, [id, profile?.id, retryCount]);
 
   useEffect(() => { fetchListing(); }, [fetchListing]);
+
+  useEffect(() => {
+    return () => { if (chatErrorTimerRef.current) clearTimeout(chatErrorTimerRef.current); };
+  }, []);
 
   // ─── Derived values (memoized) ──────────────────────────────────────────────
   const images = useMemo(() => parseImages(listing?.image_url ?? ''), [listing?.image_url]);
@@ -454,23 +465,49 @@ export default function PostDetailScreen() {
     Alert.alert('شكراً', 'تم إرسال بلاغك وسنراجعه في أقرب وقت');
   }, [profile, listing, reportReason]);
 
+  const showChatError = useCallback((msg: string) => {
+    setChatError(msg);
+    if (chatErrorTimerRef.current) clearTimeout(chatErrorTimerRef.current);
+    chatErrorTimerRef.current = setTimeout(() => setChatError(''), 5000);
+  }, []);
+
   const handleDirectChat = useCallback(async () => {
     if (!profile) { guard(() => {}); return; }
     if (!listing) return;
-    if (myChatRoomId) { router.push(`/chat?room=${myChatRoomId}`); return; }
-    setOpeningChat(true);
-    const { data, error } = await supabase.rpc('open_chat_room_as_buyer', { p_listing_id: listing.id });
-    setOpeningChat(false);
-    if (error || !data?.success) {
-      const reason = data?.reason as string;
-      if (reason === 'self_chat') Alert.alert('تنبيه', 'لا يمكنك مراسلة نفسك');
-      else if (reason === 'listing_unavailable') Alert.alert('غير متاح', 'هذا الإعلان لم يعد متاحاً للتواصل');
-      else Alert.alert('خطأ', 'تعذّر فتح المحادثة، حاول مرة أخرى');
+
+    // Fast path: room already known locally
+    if (myChatRoomId) {
+      router.push(`/chat?room=${myChatRoomId}`);
       return;
     }
-    setMyChatRoomId(data.room_id);
-    router.push(`/chat?room=${data.room_id}`);
-  }, [profile, listing, myChatRoomId, guard, router]);
+
+    setOpeningChat(true);
+    const { data, error } = await supabase.rpc('open_chat_room_as_buyer', {
+      p_listing_id: listing.id,
+    });
+
+    if (error || !data?.success) {
+      setOpeningChat(false);
+      const reason = (data?.reason ?? '') as string;
+      if (reason === 'self_chat' || reason === 'unauthorized') {
+        showChatError('لا يمكنك مراسلة نفسك');
+      } else if (reason === 'listing_unavailable') {
+        showChatError('هذا الإعلان لم يعد متاحاً للتواصل');
+        setRetryCount((c) => c + 1); // refresh listing to show updated status
+      } else if (reason === 'listing_not_found') {
+        showChatError('الإعلان غير موجود');
+      } else {
+        showChatError('تعذّر فتح المحادثة، حاول مرة أخرى');
+      }
+      return;
+    }
+
+    // Navigate immediately — chat screen handles its own loading
+    const roomId = data.room_id as string;
+    setMyChatRoomId(roomId);
+    router.push(`/chat?room=${roomId}`);
+    setOpeningChat(false);
+  }, [profile, listing, myChatRoomId, guard, router, showChatError]);
 
   // ─── Loading skeleton ───────────────────────────────────────────────────────
   if (loading) {
@@ -920,7 +957,15 @@ export default function PostDetailScreen() {
       </ScrollView>
 
       {/* ─── Sticky bottom action bar ─────────────────────────────────────────── */}
-      <View style={[styles.stickyBar, { backgroundColor: C.navBar, borderTopColor: isDark ? C.border : '#E8EDF2', paddingBottom: insets.bottom + 8 }]}>
+      <View style={{ backgroundColor: C.navBar, borderTopColor: isDark ? C.border : '#E8EDF2', borderTopWidth: 1 }}>
+        {/* Chat error banner — auto-dismisses */}
+        {!!chatError && (
+          <View style={[styles.chatErrorBanner, { backgroundColor: isDark ? 'rgba(239,68,68,0.12)' : '#FFF5F5', borderColor: 'rgba(239,68,68,0.3)' }]}>
+            <AlertCircle size={14} color="#EF4444" />
+            <Text style={styles.chatErrorText}>{chatError}</Text>
+          </View>
+        )}
+        <View style={[styles.stickyBar, { paddingBottom: insets.bottom + 8 }]}>
         {/* Icon actions */}
         <View style={styles.stickyIcons}>
           <TouchableOpacity
@@ -976,6 +1021,7 @@ export default function PostDetailScreen() {
             <Text style={[styles.primaryCtaText, { color: C.textMuted }]}>تم أخذ هذا الغرض</Text>
           </View>
         )}
+        </View>
       </View>
 
       {/* ─── Fullscreen image viewer ──────────────────────────────────────────── */}
@@ -1183,10 +1229,15 @@ const styles = StyleSheet.create({
   offerStatusText: { fontSize: FontSizes.xs, fontWeight: '700' },
 
   // Sticky bottom bar
+  chatErrorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderWidth: 1, marginHorizontal: Spacing.md, marginTop: Spacing.sm,
+    borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 8,
+  },
+  chatErrorText: { flex: 1, color: '#EF4444', fontSize: FontSizes.sm, textAlign: 'right' },
   stickyBar: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     paddingHorizontal: Spacing.md, paddingTop: 10,
-    borderTopWidth: 1,
   },
   stickyIcons: { flexDirection: 'row', gap: Spacing.sm },
   iconBtn: {
