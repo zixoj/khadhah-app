@@ -165,6 +165,17 @@ export default function SearchScreen() {
               <Text style={styles.urgentText}>مستعجل</Text>
             </View>
           )}
+          {item.status !== 'available' && (
+            <View style={[styles.statusOverlay, {
+              backgroundColor: item.status === 'taken'
+                ? 'rgba(0,0,0,0.55)'
+                : 'rgba(245,158,11,0.75)',
+            }]}>
+              <Text style={styles.statusOverlayText}>
+                {item.status === 'taken' ? 'مأخوذ' : 'محجوز'}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Body */}
@@ -501,6 +512,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 99,
   },
   urgentText: { fontSize: 9, color: '#fff', fontWeight: '700' },
+  statusOverlay: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingVertical: 4, alignItems: 'center',
+  },
+  statusOverlayText: { fontSize: 10, color: '#fff', fontWeight: '700' },
 
   cardBody: { flex: 1, padding: 12, gap: 6 },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },

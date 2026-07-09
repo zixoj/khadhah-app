@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/ThemeContext';
@@ -53,11 +54,7 @@ export default function MyListingsScreen() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
 
-  useEffect(() => {
-    fetchListings();
-  }, [profile?.id]);
-
-  const fetchListings = async () => {
+  const fetchListings = useCallback(async () => {
     if (!profile?.id) { setLoading(false); return; }
     try {
       const { data } = await supabase
@@ -70,7 +67,14 @@ export default function MyListingsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchListings();
+    }, [fetchListings])
+  );
 
   const confirmDelete = (id: string) => {
     setConfirmId(id);

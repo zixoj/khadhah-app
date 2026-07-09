@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, ActivityIndicator,
 } from 'react-native';
@@ -29,12 +29,9 @@ export default function NotificationsSettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    fetchSettings();
-  }, [profile?.id]);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     if (!profile?.id) { setLoading(false); return; }
     try {
       const { data } = await supabase.from('user_settings').select('*').eq('user_id', profile.id).maybeSingle();
@@ -51,20 +48,27 @@ export default function NotificationsSettingsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile?.id]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  useEffect(() => {
+    return () => { if (savedTimerRef.current) clearTimeout(savedTimerRef.current); };
+  }, []);
 
   const saveSettings = async () => {
     if (!profile?.id) return;
     setSaving(true);
-    const { data: existing } = await supabase.from('user_settings').select('id').eq('user_id', profile.id).maybeSingle();
-    if (existing) {
-      await supabase.from('user_settings').update({ ...settings, updated_at: new Date().toISOString() }).eq('user_id', profile.id);
-    } else {
-      await supabase.from('user_settings').insert({ user_id: profile.id, ...settings });
-    }
+    await supabase.from('user_settings').upsert(
+      { user_id: profile.id, ...settings, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
     setSaving(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
   };
 
   const toggle = (key: keyof Settings) => setSettings((prev) => ({ ...prev, [key]: !prev[key] }));

@@ -22,6 +22,15 @@ const CATEGORY_LABEL: Record<string, string> = {
   cars: 'سيارات', sports: 'رياضة', animals: 'حيوانات', other: 'أخرى',
 };
 
+function getFirstImage(imageUrl: string | null | undefined): string | null {
+  if (!imageUrl) return null;
+  try {
+    const parsed = JSON.parse(imageUrl);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+  } catch (_) {}
+  return imageUrl;
+}
+
 interface FavoriteListing {
   id: string;
   listing_id: string;
@@ -82,8 +91,8 @@ export default function FavoritesScreen() {
         onPress={() => router.push(`/post-detail?id=${listing.id}`)}
         activeOpacity={0.75}
       >
-        {listing.image_url ? (
-          <Image source={{ uri: listing.image_url }} style={styles.cardImage} />
+        {getFirstImage(listing.image_url) ? (
+          <Image source={{ uri: getFirstImage(listing.image_url)! }} style={styles.cardImage} />
         ) : (
           <View style={[styles.cardImagePlaceholder, { backgroundColor: isDark ? C.surface : '#F4F7FA' }]}>
             <Heart size={24} color={C.textMuted} />

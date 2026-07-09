@@ -31,25 +31,25 @@ export default function ProfileScreen() {
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [phoneModalVisible, setPhoneModalVisible] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (baseProfile?.id) { fetchProfile(); fetchCounts(); }
-    }, [baseProfile?.id])
-  );
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('*').eq('id', baseProfile!.id).maybeSingle();
     if (data) setProfile(data as ExtendedProfile);
-  };
+  }, [baseProfile?.id]);
 
-  const fetchCounts = async () => {
+  const fetchCounts = useCallback(async () => {
     const [listingsRes, favRes] = await Promise.all([
       supabase.from('listings').select('id', { count: 'exact', head: true }).eq('user_id', baseProfile!.id),
       supabase.from('favorites').select('id', { count: 'exact', head: true }).eq('user_id', baseProfile!.id),
     ]);
     setMyListingsCount(listingsRes.count || 0);
     setFavoritesCount(favRes.count || 0);
-  };
+  }, [baseProfile?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (baseProfile?.id) { fetchProfile(); fetchCounts(); }
+    }, [baseProfile?.id, fetchProfile, fetchCounts])
+  );
 
   const handleSignOut = async () => { await signOut(); router.replace('/(auth)/login'); };
   const isAgent = profile?.role === 'delivery_agent';
